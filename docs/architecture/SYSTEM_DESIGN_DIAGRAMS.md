@@ -1,0 +1,144 @@
+# CareerPilot AI — System Design Diagrams
+
+**Status:** Target design for review; diagrams describe planned behavior, not implemented functionality.  
+**Related document:** [Target Architecture](../ARCHITECTURE.md)  
+**Roadmap:** [Project Roadmap](../PROJECT_ROADMAP.md)
+
+These diagrams are intentionally separated by concern so a new contributor can understand the platform from the outside in.
+
+## 1. High-level architecture
+
+Shows the main runtime components and the boundaries between the frontend, backend, persistence, file storage, and AI providers.
+
+```mermaid
+flowchart TB
+    U["Users / Browser"] --> FE["React 19 + Vite + TypeScript"]
+    FE -->|"HTTPS / REST"| API["Spring Boot 3.5 + Java 21 API"]
+    API --> AUTH["Authentication & Authorization"]
+    API --> APP["CareerPilot Application Services"]
+    APP --> DB[("PostgreSQL")]
+    APP --> FS["Document Storage Interface"]
+    APP --> AI["AI Provider Interface"]
+    FS --> LOCAL[("Local File System")]
+    FS --> OBJECT[("Cloud / S3-compatible Object Storage")]
+    AI --> OLLAMA["Ollama — local AI"]
+    AI --> CLOUD["Configured cloud AI provider"]
+```
+
+**Reading the diagram:** The browser talks to the backend API. The backend applies security and business rules, then uses adapters to reach the database, document storage, and AI provider. Provider credentials remain server-side.
+
+## 2. Multi-user security and data isolation
+
+Shows the intended authorization boundary. The authenticated identity must determine the owner scope; a client-supplied user ID must never be trusted as proof of ownership.
+
+```mermaid
+flowchart TB
+    UA["User A"] --> API["Backend API"]
+    UB["User B"] --> API
+    API --> AUTH["Authenticate request"]
+    AUTH --> CTX["Build trusted user context"]
+    CTX --> POLICY["Authorize requested action"]
+    POLICY --> SVC["Business service"]
+    SVC --> REPO["Repository / data access"]
+    REPO --> DB[("PostgreSQL")]
+    DB --> FILTER["Owner-scoped records"]
+    FILTER --> SVC
+    SVC --> RESP["Response limited to caller's authorized data"]
+```
+
+**Security requirements:**
+- Every read, update, and delete must enforce ownership on the server.
+- Changing a record ID, URL, filename, or request payload must not grant access to another user's data.
+- File download and deletion must use the same authorization policy as database records.
+- Add automated cross-user/IDOR tests before declaring multi-user support ready.
+
+## 3. Deployment architecture
+
+All three deployment modes use the same application code and adapter contracts. The selected environment configuration supplies the endpoints and credentials.
+
+```mermaid
+flowchart TB
+    CODE["Same CareerPilot AI codebase<br/>React frontend + Spring Boot backend"]
+    CODE --> CONFIG{"Deployment profile"}
+
+    CONFIG --> LOCAL["Local"]
+    CONFIG --> SELF["Self-hosted"]
+    CONFIG --> CLOUD["Cloud"]
+
+    subgraph L["Local environment"]
+      LFE["Local frontend"]
+      LBE["Local backend"]
+      LDB[("Local PostgreSQL")]
+      LFS[("Local disk")]
+      LAI["Ollama or cloud AI"]
+      LFE --> LBE
+      LBE --> LDB
+      LBE --> LFS
+      LBE --> LAI
+    end
+
+    subgraph S["Self-hosted environment"]
+      SFE["Reverse proxy / frontend"]
+      SBE["Self-hosted backend"]
+      SDB[("Server PostgreSQL")]
+      SFS["Server disk or object storage"]
+      SAI["Ollama or cloud AI"]
+      SFE --> SBE
+      SBE --> SDB
+      SBE --> SFS
+      SBE --> SAI
+    end
+
+    subgraph C["Cloud environment"]
+      CFE["Static frontend hosting / CDN"]
+      CBE["Hosted backend"]
+      CDB[("Managed PostgreSQL")]
+      CFS[("Cloud object storage")]
+      CAI["Configured cloud AI"]
+      CFE --> CBE
+      CBE --> CDB
+      CBE --> CFS
+      CBE --> CAI
+    end
+
+    LOCAL --> LFE
+    SELF --> SFE
+    CLOUD --> CFE
+```
+
+**Deployment notes:**
+- Local use does not automatically make the application internet-accessible.
+- Remote deployments require HTTPS, appropriate firewall rules, and a secured reverse proxy or gateway.
+- A free-tier cloud service is an optional starting point, not a guarantee of permanently free or production-grade hosting.
+- Ollama is suitable only where the backend can securely reach the Ollama host and sufficient compute is available.
+
+## 4. Example product workflow
+
+Illustrates a proposed user journey from profile setup to application tracking. It is a product-flow example, not a claim that the features already exist.
+
+```mermaid
+flowchart TD
+    START["User signs in"] --> PROFILE["Create / update career profile"]
+    PROFILE --> JOB["Find or add a job"]
+    JOB --> MATCH["Analyze job description"]
+    MATCH --> RESUME["Compare approved resume"]
+    RESUME --> SUGGEST["AI suggests improvements"]
+    SUGGEST --> REVIEW{"User reviews and approves?"}
+    REVIEW -->|"No — revise"| SUGGEST
+    REVIEW -->|"Yes"| DRAFT["Create tailored resume / application draft"]
+    DRAFT --> TRACK["Save in application tracker"]
+    TRACK --> PREP["Prepare for interview"]
+    PREP --> PROGRESS["Track application progress"]
+```
+
+**User-control rule:** AI-generated material remains a draft until the user reviews it. Sending an email or submitting an application is a separate consequential action and requires explicit user approval.
+
+## 5. Key design invariants
+
+1. One codebase supports local, self-hosted, and cloud deployments.
+2. PostgreSQL is the common relational database baseline.
+3. Storage and AI provider selection happen through backend adapters and configuration.
+4. Secrets never ship in the frontend bundle or public repository.
+5. All private data access is authorized server-side for the authenticated user.
+6. Diagrams describe target design; implementation status is tracked separately in the roadmap.
+7. The architecture review gate must be completed before the next application-code milestone starts.
