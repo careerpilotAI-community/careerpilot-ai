@@ -38,6 +38,8 @@ flowchart TB
 
 The diagram shows target components. It does not imply that authentication, persistence, storage adapters, AI integration, or observability beyond the existing health endpoint are already implemented.
 
+For the expanded diagrams, see [System Design Diagrams](architecture/SYSTEM_DESIGN_DIAGRAMS.md). That companion document includes the high-level architecture, multi-user security/data-isolation flow, deployment modes, and an example product workflow.
+
 ## 3. Application components
 
 ### Frontend
