@@ -13,9 +13,16 @@ CareerPilot AI is an early-stage project intended to bring career-development to
 - Support structured job-search workflows.
 - Use AI as an assistant while keeping users in control of important decisions.
 
-## Planned technology
+## Technology stack
 
-The implementation stack will be documented as components are selected and added. The repository may include Java/backend components and a Vite/React frontend in the future. Planned technologies should not be interpreted as already implemented.
+The initial application foundation uses:
+
+- **Backend:** Java 21, Spring Boot 3.5.x, Maven.
+- **Frontend:** React 19, Vite, and TypeScript.
+- **Database direction:** PostgreSQL is selected for the planned persistence layer; database integration will be added with the profile/job-tracking phase.
+- **Deployment:** Local development first. Cloud deployment is deferred until the application foundation and core workflows are validated.
+
+The repository currently contains a starter backend and frontend, not the complete product.
 
 ## Suggest an improvement
 
