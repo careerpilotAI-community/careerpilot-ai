@@ -4,7 +4,7 @@
 
 CareerPilot AI is an early-stage project intended to bring career-development tools together, including job discovery, resume support, interview preparation, career guidance, and productivity features.
 
-> **Project status:** Initial repository setup. Features, architecture, and technology choices may evolve as development progresses.
+> **Project status:** Initial application foundation is in place. The target architecture is documented; implementation of persistence and product features is gated on architecture review.
 
 ## Project goals
 
@@ -13,16 +13,18 @@ CareerPilot AI is an early-stage project intended to bring career-development to
 - Support structured job-search workflows.
 - Use AI as an assistant while keeping users in control of important decisions.
 
-## Technology stack
-
-The initial application foundation uses:
+## Technology and architecture direction
 
 - **Backend:** Java 21, Spring Boot 3.5.x, Maven.
 - **Frontend:** React 19, Vite, and TypeScript.
-- **Database direction:** PostgreSQL is selected for the planned persistence layer; database integration will be added with the profile/job-tracking phase.
-- **Deployment:** Local development first. Cloud deployment is deferred until the application foundation and core workflows are validated.
+- **Database:** PostgreSQL is the common database baseline across deployment modes; integration is planned, not yet implemented.
+- **Deployment:** One codebase intended to support local, self-hosted, and cloud deployments.
+- **Document storage:** Hybrid design with local filesystem and cloud/object-storage adapters.
+- **AI:** Switchable design supporting local Ollama and a configurable cloud AI provider.
 
-The repository currently contains a starter backend and frontend, not the complete product.
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the target architecture and [docs/PROJECT_ROADMAP.md](docs/PROJECT_ROADMAP.md) for milestones and review gates.
+
+The repository currently contains a starter backend and frontend, not the complete product. Architecture decisions do not imply that planned integrations are already implemented.
 
 ## Suggest an improvement
 
