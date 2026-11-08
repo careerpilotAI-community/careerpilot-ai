@@ -1,7 +1,7 @@
 # CareerPilot AI — Target Architecture
 
 **Status:** Proposed architecture approved for documentation; implementation is gated on review.  
-**Last updated:** 2026-11-07  
+**Last updated:** 2026-11-08  
 **Scope:** Deployment-independent target architecture for a multi-user application. This document describes intended design, not completed functionality.
 
 ## 1. Architecture decisions
@@ -13,18 +13,20 @@
 | AI provider | **Switchable** — local Ollama and cloud AI providers | Keep provider-specific APIs behind a common application interface |
 | Application tenancy | **Multi-user** | Each authenticated user can access only their own records and documents |
 | Relational database | PostgreSQL as the common database baseline | Use PostgreSQL in local, self-hosted, and cloud deployments to reduce environment drift |
+| Browser authentication | **Server-side sessions with a secure HttpOnly cookie** | The backend owns session state; the browser sends the session cookie automatically |
+| Mobile support | **Deferred** | The initial authentication design targets browser clients; mobile-specific authentication will be reviewed when mobile is prioritized |
 
-Specific hosting vendors, object-storage vendors, AI vendors beyond the local Ollama option, and authentication implementation details remain open until their respective design gates.
+Specific hosting vendors, object-storage vendors, AI vendors beyond the local Ollama option, PostgreSQL version, migration tool, and detailed file/operational policies remain open until their respective design gates.
 
 ## 2. High-level architecture
 
 The frontend communicates only with the backend API. The backend owns authentication, authorization, business rules, persistence, document access, and AI-provider orchestration. Provider adapters isolate infrastructure choices from product features.
 
-```mermaid
+\`\`\`mermaid
 flowchart TB
     U[User / Browser] --> FE[React 19 + Vite + TypeScript]
     FE -->|HTTPS / REST API| API[Spring Boot 3.5 + Java 21]
-    API --> AUTH[Authentication & Authorization]
+    API --> AUTH[Session Authentication & Authorization]
     API --> APP[CareerPilot Application Services]
     APP --> DB[(PostgreSQL)]
     APP --> FS[Document Storage Adapter]
@@ -34,7 +36,7 @@ flowchart TB
     AI --> OLLAMA[Local Ollama]
     AI --> CLOUD[Configured Cloud AI Provider]
     API -.-> OBS[Health, Logs & Metrics]
-```
+\`\`\`
 
 The diagram shows target components. It does not imply that authentication, persistence, storage adapters, AI integration, or observability beyond the existing health endpoint are already implemented.
 
@@ -46,6 +48,8 @@ For the expanded diagrams, see [System Design Diagrams](architecture/SYSTEM_DESI
 - React 19, Vite, and TypeScript.
 - Calls backend APIs; it must not connect directly to PostgreSQL, document storage credentials, or AI provider secrets.
 - Uses environment-specific API configuration without embedding secrets in the browser bundle.
+- Relies on the browser to send the session cookie; application JavaScript must not be able to read the authentication cookie.
+- Sends the CSRF token using the agreed request header for state-changing requests.
 
 ### Backend
 - Java 21 and Spring Boot 3.5.x with Maven.
@@ -53,6 +57,7 @@ For the expanded diagrams, see [System Design Diagrams](architecture/SYSTEM_DESI
 - Enforces authentication and per-user authorization at the service/data access boundary.
 - Integrates with persistence, document storage, and AI through interfaces/adapters.
 - Keeps provider credentials on the server and out of frontend code and logs.
+- Creates, validates, rotates where appropriate, expires, and invalidates server-side sessions.
 
 ### Database
 - PostgreSQL is the common relational database across deployment modes.
@@ -98,39 +103,73 @@ A local installation is not automatically reachable from the public internet. Re
 Use Spring profiles for environment-specific defaults and environment variables/secrets for deployment-specific values. Keep safe examples in version control; never commit real credentials.
 
 Planned profile names:
-- `local`
-- `selfhosted`
-- `cloud`
+- \`local\`
+- \`selfhosted\`
+- \`cloud\`
 
 Illustrative backend settings (names are design examples and may be refined during implementation):
 
 | Setting | Purpose |
 |---|---|
-| `SPRING_PROFILES_ACTIVE` | Select deployment profile |
-| `DATABASE_URL`, `DATABASE_USERNAME`, `DATABASE_PASSWORD` | PostgreSQL connection |
-| `STORAGE_PROVIDER` | Select local or object storage adapter |
-| `STORAGE_LOCAL_ROOT` | Local private document directory |
-| `STORAGE_ENDPOINT`, `STORAGE_BUCKET` | Object storage destination |
-| `STORAGE_ACCESS_KEY`, `STORAGE_SECRET_KEY` | Object-storage credentials |
-| `AI_PROVIDER` | Select Ollama or cloud adapter |
-| `OLLAMA_BASE_URL`, `OLLAMA_MODEL` | Local AI endpoint and model |
-| `AI_API_KEY`, `AI_MODEL` | Cloud AI credentials and model |
+| \`SPRING_PROFILES_ACTIVE\` | Select deployment profile |
+| \`DATABASE_URL\`, \`DATABASE_USERNAME\`, \`DATABASE_PASSWORD\` | PostgreSQL connection |
+| \`STORAGE_PROVIDER\` | Select local or object storage adapter |
+| \`STORAGE_LOCAL_ROOT\` | Local private document directory |
+| \`STORAGE_ENDPOINT\`, \`STORAGE_BUCKET\` | Object storage destination |
+| \`STORAGE_ACCESS_KEY\`, \`STORAGE_SECRET_KEY\` | Object-storage credentials |
+| \`AI_PROVIDER\` | Select Ollama or cloud adapter |
+| \`OLLAMA_BASE_URL\`, \`OLLAMA_MODEL\` | Local AI endpoint and model |
+| \`AI_API_KEY\`, \`AI_MODEL\` | Cloud AI credentials and model |
 
 Exact property names, validation rules, secret management, and profile files will be finalized during implementation. Frontend configuration may contain public API base URLs only; it must never contain database, storage, or AI secrets.
 
-## 6. Multi-user security and privacy boundaries
+## 6. Authentication, authorization, and privacy boundaries
 
-Multi-user support is a core design requirement, not a later hosting feature.
+### 6.1 Selected browser authentication model
 
-- Every private business record and document must be associated with an owner.
-- Authorization must be enforced by the backend on every read and write; hiding UI controls is not security.
-- A user must not be able to access another user's data by changing an identifier, URL, filename, or request payload.
-- Use secure password handling and established authentication mechanisms; select the exact session/token design before implementing authentication.
-- Apply least privilege to database and storage credentials.
-- Use HTTPS for remote deployments; secure cookies/tokens and CSRF protections must match the chosen authentication model.
-- Avoid logging passwords, tokens, resume contents, contact details, or other sensitive personal data.
-- Define account deletion, data export, retention, and backup/restore behavior before public release.
-- Add automated tests for cross-user access attempts and authorization failures.
+CareerPilot AI will use **server-side session authentication** for the initial browser application.
+
+1. The user submits credentials to the backend over HTTPS.
+2. The backend verifies the credentials and creates a server-side authenticated session.
+3. The backend returns an opaque session identifier in a cookie configured as HttpOnly, Secure in remote/production deployments, SameSite=Lax by default, Path=/, and without a Domain attribute where the host-only cookie model is supported.
+4. The browser automatically includes the cookie on eligible requests. Frontend JavaScript cannot read the authentication cookie.
+5. The backend resolves the session on each request and derives the trusted user identity from the server-side session, never from a client-supplied user ID.
+6. Logout invalidates the server-side session and expires the browser cookie.
+
+The cookie is a transport mechanism for the session identifier; it is not a JWT. Session state remains server-side. The exact cookie name, session repository, timeout values, and local-development cookie profile will be finalized during implementation.
+
+### 6.2 Required security controls
+
+- **HTTPS:** Require HTTPS for remote, self-hosted, and cloud deployments. Secure cookies must be enabled in those environments. Any localhost-only development exception must be isolated to the local profile and must not weaken deployed settings.
+- **Cookie scope:** Use HttpOnly, Secure, SameSite=Lax by default, Path=/, and a host-only cookie (no Domain attribute). Reassess SameSite only if a documented cross-site deployment requirement emerges.
+- **CSRF protection:** Keep Spring Security CSRF protection enabled for cookie-authenticated state-changing requests. Provide a CSRF token through a deliberate SPA-compatible mechanism and require it in the configured request header. SameSite is defense-in-depth, not a replacement for CSRF protection.
+- **CORS:** Allow only explicitly configured frontend origins. Do not use wildcard origins with credentialed requests. Permit credentials only for trusted origins and the required methods/headers.
+- **Session lifecycle:** Regenerate the session identifier after successful authentication and privilege changes where applicable; enforce idle and absolute expiration; invalidate sessions on logout and account security events. Define session-store behavior before horizontal scaling.
+- **Credential handling:** Store passwords using a modern adaptive password-hashing algorithm with unique salts; never store or log plaintext passwords. Select and configure the concrete algorithm and work factor during implementation.
+- **Abuse resistance:** Rate-limit login and account-recovery endpoints, use generic authentication failure responses, and monitor suspicious repeated attempts without logging secrets.
+- **Authorization:** Enforce role/permission checks and owner-scoped access on the backend for every protected operation. Never trust a user ID, role, filename, or record ownership supplied by the browser.
+- **Data protection:** Keep private documents outside public web roots; validate uploads; use least-privilege database/storage credentials; avoid logging session IDs, credentials, resume contents, contact details, or other sensitive personal data.
+- **Account lifecycle:** Define verified registration, password reset/recovery, session invalidation after password changes, account deletion, and data export before public multi-user release.
+- **Testing:** Add tests for CSRF rejection, cookie flags, session fixation protection, expiration/logout, unauthorized requests, role boundaries, and cross-user/IDOR access attempts.
+
+### 6.3 Trade-offs and rationale
+
+**Why sessions are selected for the browser MVP**
+- A server-side session is straightforward for a same-origin or deliberately configured browser application.
+- HttpOnly cookies prevent ordinary frontend JavaScript from reading the authentication credential, reducing exposure from token theft through some classes of client-side script injection.
+- The backend can invalidate a session on logout or account-security events without waiting for a self-contained access token to expire.
+- The browser handles cookie transmission, avoiding application-managed bearer-token storage.
+
+**Costs and limitations**
+- Cookie authentication requires explicit CSRF protection and careful CORS/SameSite configuration.
+- The backend must maintain session state. Multiple backend instances will need a shared session repository or another coordinated session strategy; the specific technology is not selected here.
+- Cross-origin frontend/backend hosting needs deliberate credentialed CORS and cookie-domain design. Prefer same-site deployment where practical.
+- This browser-first choice does not define a mobile-native authentication contract. Mobile support is deferred and will trigger a separate security review.
+
+**Why JWT access/refresh tokens are not selected now**
+- JWT access/refresh flows add token issuance, refresh rotation, replay detection, revocation, expiry, signing-key management, and client storage decisions.
+- Those capabilities may be useful for mobile clients or independently consumed APIs, but they add complexity without a current MVP requirement.
+- JWTs are not inherently safer than sessions, and putting JWTs in HttpOnly cookies would still require CSRF defenses.
 
 ## 7. Operational and cost principles
 
@@ -143,14 +182,15 @@ Multi-user support is a core design requirement, not a later hosting feature.
 
 ## 8. Review gates and open decisions
 
-The deployment, storage, and AI strategy decisions in Section 1 are approved. Before implementation begins, review and confirm:
+The deployment, storage, AI strategy, multi-user direction, PostgreSQL baseline, browser session authentication, and deferral of mobile support are documented decisions. Before implementation begins, review and confirm:
 
-1. This architecture and the Mermaid component diagram.
-2. The exact authentication approach and account lifecycle.
-3. PostgreSQL version, migration tool, and local setup method.
-4. File limits, allowed formats, retention, backup, and malware-scanning policy.
-5. Initial AI provider adapter contract and data-disclosure behavior.
-6. The first deployment target used for validation; support for all modes remains the architectural goal.
-7. Secrets management, HTTPS, logging, monitoring, and restore expectations for a public multi-user deployment.
+1. This architecture and the Mermaid component/system diagrams.
+2. PostgreSQL version, migration tool, and local setup method.
+3. File limits, allowed formats, retention, backup, and malware-scanning policy.
+4. Initial AI provider adapter contract and data-disclosure behavior.
+5. Session repository/scaling approach, cookie configuration by deployment profile, and concrete password-hashing configuration.
+6. Account registration, verification, recovery, deletion, and data-export behavior.
+7. Secrets management, HTTPS, CORS origins, logging, monitoring, and restore expectations for a public multi-user deployment.
+8. The first deployment target used for end-to-end validation.
 
-**Implementation gate:** Do not begin the next application-code milestone until this document and its open decisions have been reviewed. Approval of the high-level direction does not automatically approve unresolved security or operational details.
+**Implementation gate:** Do not begin the next application-code milestone until this document and its remaining open decisions have been reviewed. Approval of the documented authentication direction does not by itself authorize implementation or resolve the operational details above.

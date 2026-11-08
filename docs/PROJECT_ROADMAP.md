@@ -1,7 +1,7 @@
 # CareerPilot AI — Product Roadmap
 
-**Status:** Planning baseline; target architecture decisions documented and awaiting review gate  
-**Last updated:** 2026-11-07  
+**Status:** Planning baseline; target architecture decisions documented and remaining review gate in progress  
+**Last updated:** 2026-11-08  
 **Scope:** Product direction and delivery phases; listed capabilities are plans unless explicitly marked complete.
 
 ## 1. Product vision
@@ -22,7 +22,7 @@ The product assists with decisions rather than making consequential career decis
 
 ## 3. Approved architecture direction
 
-The detailed target architecture and diagram are in [ARCHITECTURE.md](ARCHITECTURE.md).
+The detailed target architecture and diagrams are in [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Decision | Approved direction |
 |---|---|
@@ -31,31 +31,32 @@ The detailed target architecture and diagram are in [ARCHITECTURE.md](ARCHITECTU
 | AI provider | Switchable: local Ollama and a configurable cloud AI provider |
 | Users | Multi-user with strict server-side data isolation |
 | Database | PostgreSQL as the common relational database baseline |
+| Browser authentication | Server-side sessions, identified to the browser by a secure HttpOnly cookie; CSRF protection required |
+| Mobile support | Deferred; revisit authentication design when a mobile client is prioritized |
 
-Specific hosting vendors, exact authentication model, migration tool, file policies, and production operational controls remain subject to review. Free cloud tiers are optional and may have quotas, sleeping, suspension, or changing terms; the architecture must not depend on any one free tier.
+Specific hosting vendors, PostgreSQL version, migration tool, file policies, session repository/scaling design, password-hashing configuration, and production operational controls remain subject to review. Free cloud tiers are optional and may have quotas, sleeping, suspension, or changing terms; the architecture must not depend on any one free tier.
+
+The selected session cookie is not a JWT. JWT access/refresh tokens are not part of the initial browser MVP. The session design requires CSRF protection because browsers automatically attach cookies to eligible requests.
 
 ## 4. Proposed MVP capabilities
 
 1. **User account and profile**
-   - Account lifecycle and secure sign-in.
+   - Account lifecycle and secure sign-in using backend-managed sessions for browser clients.
    - Store career history, skills, preferred roles, locations, and job-search constraints.
    - Let users review, edit, export, and delete their stored profile information.
-
+   - Protect state-changing cookie-authenticated requests with CSRF tokens.
 2. **Job discovery and tracking**
    - Capture a listing's title, company, location, description, source URL, and observed date.
    - Track statuses such as Saved, Preparing, Applied, Interviewing, Rejected, and Closed.
    - Detect likely duplicates and flag stale listings for re-verification.
-
 3. **Resume assistance**
    - Compare a selected resume with a job description.
    - Suggest role-relevant wording while preserving factual accuracy.
    - Keep the original resume unchanged and create separately named tailored versions.
    - Require user review before a tailored resume is exported or used.
-
 4. **Application preparation**
    - Draft cover letters and recruiter messages from approved profile facts and a selected job.
    - Require explicit user approval before sending or submitting anything.
-
 5. **Interview preparation**
    - Generate role-specific practice questions from the job description and the user's actual experience.
    - Let users record notes and practice responses.
@@ -66,15 +67,16 @@ Specific hosting vendors, exact authentication model, migration tool, file polic
 - Paid job-board integrations or scraping that violates a provider's terms.
 - Claims of guaranteed job matching, ATS scores, or employment outcomes.
 - Multi-agent orchestration, complex analytics, and mobile applications before the core workflow is validated.
+- Mobile-native authentication flows; these require a separate design and security review if mobile support is approved later.
 
 ## 6. Delivery roadmap and gates
 
 | Milestone | Outcome | Exit criteria / gate |
 |---|---|---|
-| 0 — Product and architecture | Scope, architecture, deployment modes, storage and AI strategy documented | Architecture reviewed; unresolved authentication, database, file, AI-data, and operational decisions resolved before implementation |
+| 0 — Product and architecture | Scope, architecture, deployment modes, storage, AI, and browser authentication documented | Architecture reviewed; remaining database, file, AI-data, session operations, account lifecycle, and deployment decisions resolved before implementation |
 | 1 — Application foundation | Backend/frontend startup, configuration, health checks, basic CI | **Completed:** initial Java/Spring Boot and React/Vite foundation merged in PR #7; clean-checkout build/run instructions maintained |
 | 2 — Persistence foundation | PostgreSQL integration, schema migrations, local database setup, repository tests | Migration from empty database succeeds; integration tests pass; local setup works with Docker Compose or documented native PostgreSQL |
-| 3 — Multi-user identity and isolation | Registration/sign-in, account lifecycle, authorization, user ownership | Automated tests prove cross-user access is denied; secrets/passwords are safely handled |
+| 3 — Multi-user identity and isolation | Registration/sign-in, server-side session lifecycle, authorization, user ownership | Secure HttpOnly session cookie and CSRF protections configured; session expiration/logout tested; automated tests prove cross-user access is denied; credentials safely handled |
 | 4 — Profile and job tracker | User profile and job records with status tracking | CRUD flows validated; validation, ownership checks, duplicate handling, and tests in place |
 | 5 — Document storage | Storage interface plus local and object-storage adapters | Upload/download/delete authorization tests pass; size/type rules and backup/retention policy documented |
 | 6 — AI provider integration | Common AI interface with Ollama and one selected cloud provider adapter | Provider can be changed by configuration; failure handling and user data disclosure are tested |
@@ -102,6 +104,8 @@ Set numeric targets only after baseline usage exists.
 | Risk | Mitigation |
 |---|---|
 | Cross-user data exposure | Enforce ownership in backend authorization and test IDOR/cross-tenant attempts |
+| CSRF or unsafe cookie configuration | Keep CSRF protection enabled; configure cookie flags and credentialed CORS explicitly; test state-changing requests |
+| Session theft or fixation | HttpOnly/Secure cookie settings, session ID regeneration, expiration, logout invalidation, HTTPS, and safe logging |
 | Incorrect or expired job listings | Store source URL and observed date; re-check before presenting as active |
 | Fabricated resume claims | Ground suggestions in approved profile facts; require review |
 | Accidental application submission | Explicit confirmation at the final action; maintain an audit record |
@@ -113,13 +117,14 @@ Set numeric targets only after baseline usage exists.
 
 ## 9. Current review gate — no implementation yet
 
-The high-level choices for deployment, storage, and AI provider are approved and recorded. Before starting the next application-code milestone, review [ARCHITECTURE.md](ARCHITECTURE.md) and explicitly resolve:
+The high-level choices for deployment, storage, AI provider, multi-user tenancy, PostgreSQL baseline, browser session authentication, and deferral of mobile support are documented. Before starting the next application-code milestone, review [ARCHITECTURE.md](ARCHITECTURE.md) and explicitly resolve:
 
-- Authentication model and account recovery/deletion behavior.
 - PostgreSQL version, migration tool, and local startup method.
 - File type/size limits, retention, backup, and malware-scanning approach.
 - Initial AI adapter contract and disclosure/consent behavior for external processing.
-- Secrets management, HTTPS, logging, monitoring, and restore requirements.
+- Session repository/scaling strategy, cookie settings by deployment profile, and concrete password-hashing configuration.
+- Registration verification, account recovery, password reset, account deletion, and data-export behavior.
+- Secrets management, HTTPS, trusted CORS origins, logging, monitoring, and restore requirements.
 - The first deployment mode used for end-to-end validation.
 
 **No application implementation should begin until this review gate is completed.** Documentation changes do not count as implementation.
