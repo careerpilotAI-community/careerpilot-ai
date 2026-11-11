@@ -115,7 +115,7 @@ No criterion may be marked complete solely because a document or pull request is
 ## 8. Approval record
 
 - [x] First deployment target: **Local-first**.
-- [ ] MVP user-facing slice approved.
+- [x] MVP user-facing scope approved in Branch 17 (accounts/profile, job/application tracker, resume management, job details, dashboard, local Ollama assistance). Implementation remains separately gated.
 - [ ] Local development prerequisites and supported Windows/Docker baseline verified.
 - [ ] Database schema and migration policy approved.
 - [ ] Backup/restore expectations approved.
