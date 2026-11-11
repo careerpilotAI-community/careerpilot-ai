@@ -22,7 +22,7 @@ The product assists with decisions rather than making consequential career decis
 
 ## 3. Approved architecture direction
 
-The detailed target architecture and diagrams are in [ARCHITECTURE.md](ARCHITECTURE.md). The database model and operations are in [Database Architecture](architecture/database/DATABASE_ARCHITECTURE.md). The upload, storage adapter, validation, quarantine, and recovery design is in [File Storage Architecture](architecture/storage/FILE_STORAGE_ARCHITECTURE.md). The provider, privacy, consent, and cost design is in [AI Provider Architecture](architecture/ai/AI_PROVIDER_ARCHITECTURE.md).
+The detailed target architecture and diagrams are in [ARCHITECTURE.md](ARCHITECTURE.md). The database model and operations are in [Database Architecture](architecture/database/DATABASE_ARCHITECTURE.md). The upload, storage adapter, validation, quarantine, and recovery design is in [File Storage Architecture](architecture/storage/FILE_STORAGE_ARCHITECTURE.md). The provider, privacy, consent, and cost design is in [AI Provider Architecture](architecture/ai/AI_PROVIDER_ARCHITECTURE.md). Identity lifecycle, session hardening, authorization, and security controls are in [Identity and Security Architecture](architecture/security/IDENTITY_SECURITY_ARCHITECTURE.md).
 
 | Decision | Approved direction |
 |---|---|
@@ -34,7 +34,7 @@ The detailed target architecture and diagrams are in [ARCHITECTURE.md](ARCHITECT
 | Database | PostgreSQL 17 across deployment modes |
 | Schema migrations | Flyway for versioned SQL migrations |
 | Local database setup | Docker Compose; native PostgreSQL remains an alternative |
-| Browser authentication | Server-side sessions, identified to the browser by a secure HttpOnly cookie; CSRF protection required |
+| Browser authentication | Server-side sessions, identified to the browser by a secure HttpOnly cookie; CSRF protection required |\n| Identity and security | Verified account lifecycle, least-privilege roles, owner-scoped authorization, secure recovery, security audit and deletion/export controls |
 | Mobile support | Deferred; revisit authentication design when a mobile client is prioritized |
 
 Specific hosting vendors, Flyway/JDBC dependency compatibility, file policies, session repository/scaling design, password-hashing configuration, and production operational controls remain subject to review. PostgreSQL 17 remains supported through 8 November 2029 under the community versioning policy; keep its minor release current and review the major-version choice ahead of that date. Free cloud tiers are optional and may have quotas, sleeping, suspension, or changing terms; the architecture must not depend on any one free tier.
@@ -78,7 +78,7 @@ The selected session cookie is not a JWT. JWT access/refresh tokens are not part
 |---|---|---|
 | 0 — Product and architecture | Scope, architecture, deployment modes, storage, AI, and browser authentication documented | Architecture reviewed; remaining database, file, AI-data, session operations, account lifecycle, and deployment decisions resolved before implementation |
 | 0.5 — File storage design | Storage interface, local/object adapters, file safety, malware scanning, retention, and recovery documented | File Storage Architecture reviewed; file types/limits, quotas, scanner policy, metadata lifecycle, and recovery controls approved before storage implementation |
-| 0.6 — AI provider design | Provider-neutral contract, local/cloud routing, privacy, consent, prompt safety, budgets, and resilience documented | AI Provider Architecture reviewed; cloud provider terms, local model requirements, consent UX, model allowlist, budgets, and embedding scope approved before AI implementation |
+| 0.6 — AI provider design | Provider-neutral contract, local/cloud routing, privacy, consent, prompt safety, budgets, and resilience documented | AI Provider Architecture reviewed; cloud provider terms, local model requirements, consent UX, model allowlist, budgets, and embedding scope approved before AI implementation |\n| 0.7 — Identity and security design | Account lifecycle, password/session security, authorization, API defenses, audit, export/deletion, and threat model documented | Identity and Security Architecture reviewed; registration, password, session, CSRF/CORS, roles, MFA scope, account lifecycle, and security operations approved before identity implementation |
 | 1 — Application foundation | Backend/frontend startup, configuration, health checks, basic CI | **Completed:** initial Java/Spring Boot and React/Vite foundation merged in PR #7; clean-checkout build/run instructions maintained |
 | 2 — Persistence foundation | PostgreSQL 17 integration, Flyway schema migrations, local database setup, repository tests | Migration from an empty database succeeds; migration validation and integration tests pass; local setup works with Docker Compose or documented native PostgreSQL |
 | 3 — Multi-user identity and isolation | Registration/sign-in, server-side session lifecycle, authorization, user ownership | Secure HttpOnly session cookie and CSRF protections configured; session expiration/logout tested; automated tests prove cross-user access is denied; credentials safely handled |
@@ -129,7 +129,7 @@ The high-level choices for deployment, storage, AI provider, multi-user tenancy,
 - PostgreSQL backup retention, encryption, off-site storage, point-in-time recovery, and tested recovery-point/recovery-time objectives.
 - File type/size limits, per-user and deployment quotas, scanner selection/fail-closed behavior, metadata lifecycle, retention, backup, and restore strategy.
 - Initial AI adapter contract, cloud provider terms, disclosure/consent behavior, prompt-injection defenses, local model requirements, and usage/cost budgets.
-- Session repository/scaling strategy, cookie settings by deployment profile, and concrete password-hashing configuration.
+- Session repository/scaling strategy, cookie settings by deployment profile, and concrete password-hashing configuration.\n- Registration/verification policy, login abuse controls, role provisioning, MFA scope, account recovery, export/deletion semantics, audit retention, and security monitoring as defined in [Identity and Security Architecture](architecture/security/IDENTITY_SECURITY_ARCHITECTURE.md).
 - Registration verification, account recovery, password reset, account deletion, and data-export behavior.
 - Secrets management, HTTPS, trusted CORS origins, logging, monitoring, and restore requirements.
 - The first deployment mode used for end-to-end validation.
