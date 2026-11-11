@@ -175,7 +175,27 @@ flowchart TB
 - Ollama is suitable only where the backend can securely reach the Ollama host and sufficient compute is available.
 - Cookie settings and trusted frontend origins must be configured per deployment; do not use wildcard CORS with credentials.
 
-## 7. Example product workflow
+## 7. AI provider routing, privacy, and review
+
+~~~mermaid
+flowchart TB
+  B[Browser] --> API[Spring Boot API]
+  API --> AUTH[Session, CSRF, owner authorization]
+  AUTH --> FEATURE[CareerPilot feature service]
+  FEATURE --> MIN[Data minimization and consent policy]
+  MIN --> PORT[Provider-neutral AI interface]
+  PORT --> CFG{Server-side provider config}
+  CFG -->|Local enabled| OLLAMA[Private Ollama endpoint]
+  CFG -->|Cloud explicitly enabled + consent| CLOUD[Approved cloud AI API]
+  OLLAMA --> VALID[Response validation and normalization]
+  CLOUD --> VALID
+  VALID --> DRAFT[Save/display as draft]
+  DRAFT --> REVIEW[User reviews and approves]
+~~~
+
+**Privacy invariant:** no silent local-to-cloud fallback. The backend selects the provider; browser input cannot supply arbitrary provider, model, endpoint, or credentials. Cloud processing of personal/document data requires prior disclosure and affirmative consent. Provider outages do not change the data-disclosure route automatically. See [AI Provider Architecture](ai/AI_PROVIDER_ARCHITECTURE.md).
+
+## 8. Example product workflow
 
 \`\`\`mermaid
 flowchart TD
@@ -194,7 +214,7 @@ flowchart TD
 
 This is a proposed product flow, not a claim that these features already exist. AI-generated material remains a draft until reviewed by the user. Sending an email or submitting an application is a separate consequential action and requires explicit user approval.
 
-## 8. Key design invariants
+## 9. Key design invariants
 
 1. One codebase supports local, self-hosted, and cloud deployments.
 2. PostgreSQL 17 is the common relational database baseline.
@@ -204,6 +224,7 @@ This is a proposed product flow, not a claim that these features already exist. 
 6. Storage access always passes through backend authentication and tenant authorization.
 3. Browser authentication uses backend-managed sessions with a Secure/HttpOnly cookie; CSRF protection remains enabled.
 4. Storage and AI provider selection happen through backend adapters and configuration.
+5. AI provider selection is server-side; cloud processing requires disclosure and consent, and provider failure never triggers silent cloud fallback.
 5. Secrets never ship in the frontend bundle or public repository.
 6. All private data access is authorized server-side for the authenticated user.
 7. Diagrams describe target design; implementation status is tracked separately in the roadmap.
