@@ -82,7 +82,25 @@ flowchart TB
 - Add automated cross-user/IDOR tests before declaring multi-user support ready.
 - Cookie-authenticated state-changing requests must pass CSRF validation; credentialed CORS must allow only explicitly trusted origins.
 
-## 4. Database and local development topology
+## 4. File upload, validation, and quarantine lifecycle
+
+~~~mermaid
+flowchart TD
+    B["Browser upload"] --> API["Backend: session + CSRF + owner authorization"]
+    API --> LIMIT["Ingress and size limits"]
+    LIMIT --> Q["Private quarantine storage"]
+    Q --> VALID["Extension, signature, structure, size checks"]
+    VALID -->|"Valid"| SCAN["Malware scanner"]
+    VALID -->|"Invalid"| REJECT["Reject; inaccessible; cleanup"]
+    SCAN -->|"Clean"| PROMOTE["Promote to private final key"]
+    SCAN -->|"Malicious / error / timeout"| REJECT
+    PROMOTE --> META["Verify checksum and mark AVAILABLE in PostgreSQL"]
+    META --> READY["Authorized download through backend"]
+~~~
+
+Only AVAILABLE assets are downloadable. Scanner failures remain quarantined; hosted production must fail closed. See [File Storage Architecture](storage/FILE_STORAGE_ARCHITECTURE.md).
+
+## 5. Database and local development topology
 
 ~~~mermaid
 flowchart TB
@@ -102,7 +120,7 @@ flowchart TB
 
 Compose is a local convenience; native PostgreSQL can be used instead. Bind the database port to loopback by default, keep credentials outside version control, use a named volume, and run migrations as a controlled step. This diagram does not define production deployment topology. See [Database Architecture](database/DATABASE_ARCHITECTURE.md) for the conceptual ERD, isolation rules, Flyway lifecycle, and backup/restore plan.
 
-## 5. Deployment architecture
+## 6. Deployment architecture
 
 \`\`\`mermaid
 flowchart TB
@@ -157,7 +175,7 @@ flowchart TB
 - Ollama is suitable only where the backend can securely reach the Ollama host and sufficient compute is available.
 - Cookie settings and trusted frontend origins must be configured per deployment; do not use wildcard CORS with credentials.
 
-## 6. Example product workflow
+## 7. Example product workflow
 
 \`\`\`mermaid
 flowchart TD
@@ -176,12 +194,14 @@ flowchart TD
 
 This is a proposed product flow, not a claim that these features already exist. AI-generated material remains a draft until reviewed by the user. Sending an email or submitting an application is a separate consequential action and requires explicit user approval.
 
-## 7. Key design invariants
+## 8. Key design invariants
 
 1. One codebase supports local, self-hosted, and cloud deployments.
 2. PostgreSQL 17 is the common relational database baseline.
 3. Flyway owns versioned schema changes for application tables.
 4. Docker Compose is the local database convenience, not a production requirement.
+5. Document bytes are private; metadata lives in PostgreSQL, and files are unavailable until validation and scanning succeed.
+6. Storage access always passes through backend authentication and tenant authorization.
 3. Browser authentication uses backend-managed sessions with a Secure/HttpOnly cookie; CSRF protection remains enabled.
 4. Storage and AI provider selection happen through backend adapters and configuration.
 5. Secrets never ship in the frontend bundle or public repository.
