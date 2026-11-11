@@ -18,7 +18,7 @@
 | Browser authentication | **Server-side sessions with a secure HttpOnly cookie** | The backend owns session state; the browser sends the session cookie automatically |
 | Mobile support | **Deferred** | The initial authentication design targets browser clients; mobile-specific authentication will be reviewed when mobile is prioritized |
 
-Specific hosting vendors, object-storage vendors, AI vendors beyond the local Ollama option, Flyway version/configuration, and detailed file/operational policies remain open until their respective design gates.
+Specific hosting vendors, object-storage vendors, AI vendors beyond the local Ollama option, Flyway version/configuration, and detailed file/operational policies remain open until their respective design gates. See [File Storage Architecture](architecture/storage/FILE_STORAGE_ARCHITECTURE.md) for the upload lifecycle, adapter contract, validation, quarantine/scanning, authorization, retention, and recovery design.
 
 ## 2. High-level architecture
 

@@ -22,12 +22,13 @@ The product assists with decisions rather than making consequential career decis
 
 ## 3. Approved architecture direction
 
-The detailed target architecture and diagrams are in [ARCHITECTURE.md](ARCHITECTURE.md). The database model and operations are in [Database Architecture](architecture/database/DATABASE_ARCHITECTURE.md).
+The detailed target architecture and diagrams are in [ARCHITECTURE.md](ARCHITECTURE.md). The database model and operations are in [Database Architecture](architecture/database/DATABASE_ARCHITECTURE.md). The upload, storage adapter, validation, quarantine, and recovery design is in [File Storage Architecture](architecture/storage/FILE_STORAGE_ARCHITECTURE.md).
 
 | Decision | Approved direction |
 |---|---|
 | Deployment | Support local, self-hosted, and cloud modes from the same codebase |
-| Document storage | Hybrid: local filesystem adapter and cloud/object-storage adapter |
+| Document storage | Hybrid: private local filesystem adapter and private cloud/object-storage adapter |
+| File safety | Backend-authorized upload/download; validation and quarantine; malware scan before availability; opaque storage keys |
 | AI provider | Switchable: local Ollama and a configurable cloud AI provider |
 | Users | Multi-user with strict server-side data isolation |
 | Database | PostgreSQL 17 across deployment modes |
@@ -76,6 +77,7 @@ The selected session cookie is not a JWT. JWT access/refresh tokens are not part
 | Milestone | Outcome | Exit criteria / gate |
 |---|---|---|
 | 0 — Product and architecture | Scope, architecture, deployment modes, storage, AI, and browser authentication documented | Architecture reviewed; remaining database, file, AI-data, session operations, account lifecycle, and deployment decisions resolved before implementation |
+| 0.5 — File storage design | Storage interface, local/object adapters, file safety, malware scanning, retention, and recovery documented | File Storage Architecture reviewed; file types/limits, quotas, scanner policy, metadata lifecycle, and recovery controls approved before storage implementation |
 | 1 — Application foundation | Backend/frontend startup, configuration, health checks, basic CI | **Completed:** initial Java/Spring Boot and React/Vite foundation merged in PR #7; clean-checkout build/run instructions maintained |
 | 2 — Persistence foundation | PostgreSQL 17 integration, Flyway schema migrations, local database setup, repository tests | Migration from an empty database succeeds; migration validation and integration tests pass; local setup works with Docker Compose or documented native PostgreSQL |
 | 3 — Multi-user identity and isolation | Registration/sign-in, server-side session lifecycle, authorization, user ownership | Secure HttpOnly session cookie and CSRF protections configured; session expiration/logout tested; automated tests prove cross-user access is denied; credentials safely handled |
@@ -120,11 +122,11 @@ Set numeric targets only after baseline usage exists.
 
 ## 9. Current review gate — no implementation yet
 
-The high-level choices for deployment, storage, AI provider, multi-user tenancy, PostgreSQL 17, Flyway, Docker Compose for local development, browser session authentication, and deferral of mobile support are documented. Before starting the next application-code milestone, review [ARCHITECTURE.md](ARCHITECTURE.md) and explicitly resolve:
+The high-level choices for deployment, storage, AI provider, multi-user tenancy, PostgreSQL 17, Flyway, Docker Compose for local development, browser session authentication, and deferral of mobile support are documented. The file storage design is in [File Storage Architecture](architecture/storage/FILE_STORAGE_ARCHITECTURE.md). Before starting application-code milestones, review [ARCHITECTURE.md](ARCHITECTURE.md) and explicitly resolve:
 
 - Initial entity scope, tenant ownership constraints, indexes, Flyway/JDBC/Spring Boot dependency compatibility, and migration-job ownership.
 - PostgreSQL backup retention, encryption, off-site storage, point-in-time recovery, and tested recovery-point/recovery-time objectives.
-- File type/size limits, retention, backup, and malware-scanning approach.
+- File type/size limits, per-user and deployment quotas, scanner selection/fail-closed behavior, metadata lifecycle, retention, backup, and restore strategy.
 - Initial AI adapter contract and disclosure/consent behavior for external processing.
 - Session repository/scaling strategy, cookie settings by deployment profile, and concrete password-hashing configuration.
 - Registration verification, account recovery, password reset, account deletion, and data-export behavior.
