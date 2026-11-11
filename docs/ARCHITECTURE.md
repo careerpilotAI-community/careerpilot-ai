@@ -12,11 +12,13 @@
 | Document storage | **Hybrid** — local disk and cloud/object storage | Select the storage adapter through environment configuration |
 | AI provider | **Switchable** — local Ollama and cloud AI providers | Keep provider-specific APIs behind a common application interface |
 | Application tenancy | **Multi-user** | Each authenticated user can access only their own records and documents |
-| Relational database | PostgreSQL as the common database baseline | Use PostgreSQL in local, self-hosted, and cloud deployments to reduce environment drift |
+| Relational database | **PostgreSQL 17** | Common database baseline across local, self-hosted, and cloud deployments |
+| Schema migrations | **Flyway** | Versioned, reviewable schema changes; implementation is not started |
+| Local database setup | **Docker Compose** | Reproducible local PostgreSQL 17 service; native PostgreSQL remains an alternative |
 | Browser authentication | **Server-side sessions with a secure HttpOnly cookie** | The backend owns session state; the browser sends the session cookie automatically |
 | Mobile support | **Deferred** | The initial authentication design targets browser clients; mobile-specific authentication will be reviewed when mobile is prioritized |
 
-Specific hosting vendors, object-storage vendors, AI vendors beyond the local Ollama option, PostgreSQL version, migration tool, and detailed file/operational policies remain open until their respective design gates.
+Specific hosting vendors, object-storage vendors, AI vendors beyond the local Ollama option, Flyway version/configuration, and detailed file/operational policies remain open until their respective design gates.
 
 ## 2. High-level architecture
 
@@ -40,7 +42,7 @@ flowchart TB
 
 The diagram shows target components. It does not imply that authentication, persistence, storage adapters, AI integration, or observability beyond the existing health endpoint are already implemented.
 
-For the expanded diagrams, see [System Design Diagrams](architecture/SYSTEM_DESIGN_DIAGRAMS.md). This companion document includes the high-level architecture, multi-user security/data-isolation flow, deployment modes, and an example product workflow.
+For the expanded diagrams, see [System Design Diagrams](architecture/SYSTEM_DESIGN_DIAGRAMS.md). The database model and operating strategy are in [Database Architecture](architecture/database/DATABASE_ARCHITECTURE.md).
 
 ## 3. Application components
 
@@ -60,10 +62,12 @@ For the expanded diagrams, see [System Design Diagrams](architecture/SYSTEM_DESI
 - Creates, validates, rotates where appropriate, expires, and invalidates server-side sessions.
 
 ### Database
-- PostgreSQL is the common relational database across deployment modes.
-- User-owned records must carry an ownership relationship, and queries/mutations must enforce it.
-- Database schema changes will be versioned and repeatable through a migration tool selected before persistence implementation.
-- Local development may use PostgreSQL in Docker Compose or a native PostgreSQL installation; Docker is a convenience, not a hard runtime dependency.
+- PostgreSQL 17 is the common relational database across deployment modes.
+- Flyway is the selected schema migration tool; migration scripts will be reviewed and version-controlled with the application.
+- Docker Compose is the selected convenience for local PostgreSQL startup; it is not a production deployment requirement or hard runtime dependency.
+- User-owned records must carry a non-null ownership relationship, and queries/mutations must enforce it.
+- Composite owner-aware foreign keys should prevent relationships from crossing user boundaries.
+- See [Database Architecture](architecture/database/DATABASE_ARCHITECTURE.md) for conceptual entities, tenant isolation, migration lifecycle, and backup/restore strategy.
 
 ### Document storage — hybrid
 Define a storage interface so product services do not depend on a vendor or filesystem API directly.
@@ -185,12 +189,13 @@ The cookie is a transport mechanism for the session identifier; it is not a JWT.
 The deployment, storage, AI strategy, multi-user direction, PostgreSQL baseline, browser session authentication, and deferral of mobile support are documented decisions. Before implementation begins, review and confirm:
 
 1. This architecture and the Mermaid component/system diagrams.
-2. PostgreSQL version, migration tool, and local setup method.
-3. File limits, allowed formats, retention, backup, and malware-scanning policy.
-4. Initial AI provider adapter contract and data-disclosure behavior.
-5. Session repository/scaling approach, cookie configuration by deployment profile, and concrete password-hashing configuration.
-6. Account registration, verification, recovery, deletion, and data-export behavior.
-7. Secrets management, HTTPS, CORS origins, logging, monitoring, and restore expectations for a public multi-user deployment.
-8. The first deployment target used for end-to-end validation.
+2. Database entity scope, owner-aware constraints, indexing, Flyway/JDBC compatibility, migration execution policy, and local Compose setup.
+3. PostgreSQL backup retention, encryption, off-site storage, point-in-time recovery, and tested RPO/RTO targets.
+4. File limits, allowed formats, retention, backup, and malware-scanning policy.
+5. Initial AI provider adapter contract and data-disclosure behavior.
+6. Session repository/scaling approach, cookie configuration by deployment profile, and concrete password-hashing configuration.
+7. Account registration, verification, recovery, deletion, and data-export behavior.
+8. Secrets management, HTTPS, CORS origins, logging, monitoring, and restore expectations for a public multi-user deployment.
+9. The first deployment target used for end-to-end validation.
 
 **Implementation gate:** Do not begin the next application-code milestone until this document and its remaining open decisions have been reviewed. Approval of the documented authentication direction does not by itself authorize implementation or resolve the operational details above.
