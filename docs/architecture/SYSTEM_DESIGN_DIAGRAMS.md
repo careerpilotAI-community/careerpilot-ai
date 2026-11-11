@@ -195,7 +195,60 @@ flowchart TB
 
 **Privacy invariant:** no silent local-to-cloud fallback. The backend selects the provider; browser input cannot supply arbitrary provider, model, endpoint, or credentials. Cloud processing of personal/document data requires prior disclosure and affirmative consent. Provider outages do not change the data-disclosure route automatically. See [AI Provider Architecture](ai/AI_PROVIDER_ARCHITECTURE.md).
 
-## 8. Example product workflow
+## 8. Identity, account lifecycle, and authorization
+
+~~~mermaid
+flowchart TB
+  REG[Registration request] --> VERIFY[Single-use email verification]
+  VERIFY --> ACTIVE[Verified ACTIVE account]
+  ACTIVE --> LOGIN[HTTPS login]
+  LOGIN --> HASH[Verify password hash]
+  HASH --> SESSION[Create/rotate server-side session]
+  SESSION --> COOKIE[HttpOnly Secure SameSite cookie]
+  COOKIE --> API[Authenticated API request]
+  API --> PRINCIPAL[Resolve trusted session principal]
+  PRINCIPAL --> AUTHZ[Role + owner-scoped authorization]
+  AUTHZ --> DATA[(Only caller-authorized records)]
+  RECOVERY[Password recovery] --> TOKEN[Short-lived single-use hashed token]
+  TOKEN --> RESET[Reset password + invalidate sessions]
+  RESET --> LOGIN
+  DISABLE[Disable / delete account] --> REVOKE[Revoke sessions and access]
+~~~
+
+The browser never supplies a trusted user ID or role. Registration assigns the standard USER role server-side. Account recovery and security-sensitive changes require rate limits and audit events. See [Identity and Security Architecture](security/IDENTITY_SECURITY_ARCHITECTURE.md).
+
+## 9. Security boundaries and trust zones
+
+~~~mermaid
+flowchart LR
+  subgraph CLIENT[Untrusted client]
+    B[Browser and user input]
+  end
+  subgraph EDGE[Trusted ingress]
+    RP[HTTPS reverse proxy / gateway]
+  end
+  subgraph APP[Application trust boundary]
+    API[Spring Boot API]
+    SEC[Session, CSRF, CORS, authorization]
+    SVC[Business services]
+  end
+  subgraph PRIVATE[Private data services]
+    DB[(PostgreSQL)]
+    FS[Private document storage]
+    AI[Configured AI adapters]
+  end
+  B -->|HTTPS| RP
+  RP --> API
+  API --> SEC
+  SEC --> SVC
+  SVC --> DB
+  SVC --> FS
+  SVC --> AI
+~~~
+
+Only the HTTPS ingress is exposed to the browser. Database, storage credentials, session infrastructure, and AI provider credentials remain private to backend services. All data access is authorized using the server-derived principal. See [Identity and Security Architecture](security/IDENTITY_SECURITY_ARCHITECTURE.md).
+
+## 10. Example product workflow
 
 \`\`\`mermaid
 flowchart TD
@@ -214,7 +267,7 @@ flowchart TD
 
 This is a proposed product flow, not a claim that these features already exist. AI-generated material remains a draft until reviewed by the user. Sending an email or submitting an application is a separate consequential action and requires explicit user approval.
 
-## 9. Key design invariants
+## 11. Key design invariants
 
 1. One codebase supports local, self-hosted, and cloud deployments.
 2. PostgreSQL 17 is the common relational database baseline.
