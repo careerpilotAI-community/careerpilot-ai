@@ -1,7 +1,7 @@
 # CareerPilot AI — Product Roadmap
 
 **Status:** Planning baseline; target architecture decisions documented and remaining review gate in progress  
-**Last updated:** 2026-11-08  
+**Last updated:** 2026-11-12  
 **Scope:** Product direction and delivery phases; listed capabilities are plans unless explicitly marked complete.
 
 ## 1. Product vision
@@ -22,7 +22,7 @@ The product assists with decisions rather than making consequential career decis
 
 ## 3. Approved architecture direction
 
-The detailed target architecture and diagrams are in [ARCHITECTURE.md](ARCHITECTURE.md).
+The detailed target architecture and diagrams are in [ARCHITECTURE.md](ARCHITECTURE.md). The database model and operations are in [Database Architecture](architecture/database/DATABASE_ARCHITECTURE.md).
 
 | Decision | Approved direction |
 |---|---|
@@ -120,7 +120,7 @@ Set numeric targets only after baseline usage exists.
 
 ## 9. Current review gate — no implementation yet
 
-The high-level choices for deployment, storage, AI provider, multi-user tenancy, PostgreSQL baseline, browser session authentication, and deferral of mobile support are documented. Before starting the next application-code milestone, review [ARCHITECTURE.md](ARCHITECTURE.md) and explicitly resolve:
+The high-level choices for deployment, storage, AI provider, multi-user tenancy, PostgreSQL 17, Flyway, Docker Compose for local development, browser session authentication, and deferral of mobile support are documented. Before starting the next application-code milestone, review [ARCHITECTURE.md](ARCHITECTURE.md) and explicitly resolve:
 
 - Initial entity scope, tenant ownership constraints, indexes, Flyway/JDBC/Spring Boot dependency compatibility, and migration-job ownership.
 - PostgreSQL backup retention, encryption, off-site storage, point-in-time recovery, and tested recovery-point/recovery-time objectives.
