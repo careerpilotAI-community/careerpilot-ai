@@ -11,7 +11,7 @@ flowchart TB
     FE -->|"HTTPS / REST"| API["Spring Boot 3.5 + Java 21 API"]
     API --> AUTH["Server-side Session Authentication & Authorization"]
     API --> APP["CareerPilot Application Services"]
-    APP --> DB[("PostgreSQL")]
+    APP --> DB[("PostgreSQL 17")]
     APP --> FS["Document Storage Interface"]
     APP --> AI["AI Provider Interface"]
     FS --> LOCAL[("Local File System")]
@@ -31,7 +31,7 @@ sequenceDiagram
     participant Browser
     participant API as Spring Boot API
     participant Session as Server-side Session Store
-    participant DB as PostgreSQL
+    participant DB as PostgreSQL 17
 
     User->>Browser: Submit credentials
     Browser->>API: POST sign-in over HTTPS
@@ -69,7 +69,7 @@ flowchart TB
     CTX --> POLICY["Authorize requested action"]
     POLICY --> SVC["Business service"]
     SVC --> REPO["Repository / data access"]
-    REPO --> DB[("PostgreSQL")]
+    REPO --> DB[("PostgreSQL 17")]
     DB --> FILTER["Owner-scoped records"]
     FILTER --> SVC
     SVC --> RESP["Response limited to caller's authorized data"]
@@ -82,7 +82,27 @@ flowchart TB
 - Add automated cross-user/IDOR tests before declaring multi-user support ready.
 - Cookie-authenticated state-changing requests must pass CSRF validation; credentialed CORS must allow only explicitly trusted origins.
 
-## 4. Deployment architecture
+## 4. Database and local development topology
+
+~~~mermaid
+flowchart TB
+    DEV["Developer workstation"]
+    COMPOSE["Docker Compose — local profile"]
+    PG[("PostgreSQL 17 container")]
+    VOL[("Named persistent volume")]
+    APP["Spring Boot application"]
+    FLYWAY["Flyway migration step"]
+    DEV --> COMPOSE
+    COMPOSE --> PG
+    PG --> VOL
+    DEV --> APP
+    APP -->|"JDBC / localhost"| PG
+    FLYWAY -->|"Versioned SQL migrations"| PG
+~~~
+
+Compose is a local convenience; native PostgreSQL can be used instead. Bind the database port to loopback by default, keep credentials outside version control, use a named volume, and run migrations as a controlled step. This diagram does not define production deployment topology. See [Database Architecture](database/DATABASE_ARCHITECTURE.md) for the conceptual ERD, isolation rules, Flyway lifecycle, and backup/restore plan.
+
+## 5. Deployment architecture
 
 \`\`\`mermaid
 flowchart TB
@@ -137,7 +157,7 @@ flowchart TB
 - Ollama is suitable only where the backend can securely reach the Ollama host and sufficient compute is available.
 - Cookie settings and trusted frontend origins must be configured per deployment; do not use wildcard CORS with credentials.
 
-## 5. Example product workflow
+## 6. Example product workflow
 
 \`\`\`mermaid
 flowchart TD
@@ -156,10 +176,12 @@ flowchart TD
 
 This is a proposed product flow, not a claim that these features already exist. AI-generated material remains a draft until reviewed by the user. Sending an email or submitting an application is a separate consequential action and requires explicit user approval.
 
-## 6. Key design invariants
+## 7. Key design invariants
 
 1. One codebase supports local, self-hosted, and cloud deployments.
-2. PostgreSQL is the common relational database baseline.
+2. PostgreSQL 17 is the common relational database baseline.
+3. Flyway owns versioned schema changes for application tables.
+4. Docker Compose is the local database convenience, not a production requirement.
 3. Browser authentication uses backend-managed sessions with a Secure/HttpOnly cookie; CSRF protection remains enabled.
 4. Storage and AI provider selection happen through backend adapters and configuration.
 5. Secrets never ship in the frontend bundle or public repository.

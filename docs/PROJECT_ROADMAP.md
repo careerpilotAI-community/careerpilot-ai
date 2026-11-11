@@ -1,7 +1,7 @@
 # CareerPilot AI — Product Roadmap
 
 **Status:** Planning baseline; target architecture decisions documented and remaining review gate in progress  
-**Last updated:** 2026-11-08  
+**Last updated:** 2026-11-12  
 **Scope:** Product direction and delivery phases; listed capabilities are plans unless explicitly marked complete.
 
 ## 1. Product vision
@@ -22,7 +22,7 @@ The product assists with decisions rather than making consequential career decis
 
 ## 3. Approved architecture direction
 
-The detailed target architecture and diagrams are in [ARCHITECTURE.md](ARCHITECTURE.md).
+The detailed target architecture and diagrams are in [ARCHITECTURE.md](ARCHITECTURE.md). The database model and operations are in [Database Architecture](architecture/database/DATABASE_ARCHITECTURE.md).
 
 | Decision | Approved direction |
 |---|---|
@@ -30,11 +30,13 @@ The detailed target architecture and diagrams are in [ARCHITECTURE.md](ARCHITECT
 | Document storage | Hybrid: local filesystem adapter and cloud/object-storage adapter |
 | AI provider | Switchable: local Ollama and a configurable cloud AI provider |
 | Users | Multi-user with strict server-side data isolation |
-| Database | PostgreSQL as the common relational database baseline |
+| Database | PostgreSQL 17 across deployment modes |
+| Schema migrations | Flyway for versioned SQL migrations |
+| Local database setup | Docker Compose; native PostgreSQL remains an alternative |
 | Browser authentication | Server-side sessions, identified to the browser by a secure HttpOnly cookie; CSRF protection required |
 | Mobile support | Deferred; revisit authentication design when a mobile client is prioritized |
 
-Specific hosting vendors, PostgreSQL version, migration tool, file policies, session repository/scaling design, password-hashing configuration, and production operational controls remain subject to review. Free cloud tiers are optional and may have quotas, sleeping, suspension, or changing terms; the architecture must not depend on any one free tier.
+Specific hosting vendors, Flyway/JDBC dependency compatibility, file policies, session repository/scaling design, password-hashing configuration, and production operational controls remain subject to review. PostgreSQL 17 remains supported through 8 November 2029 under the community versioning policy; keep its minor release current and review the major-version choice ahead of that date. Free cloud tiers are optional and may have quotas, sleeping, suspension, or changing terms; the architecture must not depend on any one free tier.
 
 The selected session cookie is not a JWT. JWT access/refresh tokens are not part of the initial browser MVP. The session design requires CSRF protection because browsers automatically attach cookies to eligible requests.
 
@@ -75,7 +77,7 @@ The selected session cookie is not a JWT. JWT access/refresh tokens are not part
 |---|---|---|
 | 0 — Product and architecture | Scope, architecture, deployment modes, storage, AI, and browser authentication documented | Architecture reviewed; remaining database, file, AI-data, session operations, account lifecycle, and deployment decisions resolved before implementation |
 | 1 — Application foundation | Backend/frontend startup, configuration, health checks, basic CI | **Completed:** initial Java/Spring Boot and React/Vite foundation merged in PR #7; clean-checkout build/run instructions maintained |
-| 2 — Persistence foundation | PostgreSQL integration, schema migrations, local database setup, repository tests | Migration from empty database succeeds; integration tests pass; local setup works with Docker Compose or documented native PostgreSQL |
+| 2 — Persistence foundation | PostgreSQL 17 integration, Flyway schema migrations, local database setup, repository tests | Migration from an empty database succeeds; migration validation and integration tests pass; local setup works with Docker Compose or documented native PostgreSQL |
 | 3 — Multi-user identity and isolation | Registration/sign-in, server-side session lifecycle, authorization, user ownership | Secure HttpOnly session cookie and CSRF protections configured; session expiration/logout tested; automated tests prove cross-user access is denied; credentials safely handled |
 | 4 — Profile and job tracker | User profile and job records with status tracking | CRUD flows validated; validation, ownership checks, duplicate handling, and tests in place |
 | 5 — Document storage | Storage interface plus local and object-storage adapters | Upload/download/delete authorization tests pass; size/type rules and backup/retention policy documented |
@@ -103,7 +105,7 @@ Set numeric targets only after baseline usage exists.
 
 | Risk | Mitigation |
 |---|---|
-| Cross-user data exposure | Enforce ownership in backend authorization and test IDOR/cross-tenant attempts |
+| Cross-user data exposure | Enforce ownership in backend authorization, test IDOR/cross-tenant attempts, and use owner-aware database constraints |
 | CSRF or unsafe cookie configuration | Keep CSRF protection enabled; configure cookie flags and credentialed CORS explicitly; test state-changing requests |
 | Session theft or fixation | HttpOnly/Secure cookie settings, session ID regeneration, expiration, logout invalidation, HTTPS, and safe logging |
 | Incorrect or expired job listings | Store source URL and observed date; re-check before presenting as active |
@@ -111,15 +113,17 @@ Set numeric targets only after baseline usage exists.
 | Accidental application submission | Explicit confirmation at the final action; maintain an audit record |
 | Exposure of personal data | Data minimization, access controls, encryption, safe logging, and retention controls |
 | External provider outage or cost | Provider adapters, quotas/timeouts, configurable selection, and local AI option |
-| Loss of uploaded documents | Defined backup/restore, retention, and deletion procedures |
+| Loss of uploaded documents | Defined database and document backup/restore, retention, and deletion procedures; test recovery together |
+| Migration drift or unsafe schema changes | Immutable Flyway migrations, validation, review, and pre-deployment recovery procedures |
 | Free-tier hosting changes | Keep providers replaceable; do not treat free-tier availability as a production guarantee |
 | Overly broad first release | Enforce MVP exclusions and milestone exit criteria |
 
 ## 9. Current review gate — no implementation yet
 
-The high-level choices for deployment, storage, AI provider, multi-user tenancy, PostgreSQL baseline, browser session authentication, and deferral of mobile support are documented. Before starting the next application-code milestone, review [ARCHITECTURE.md](ARCHITECTURE.md) and explicitly resolve:
+The high-level choices for deployment, storage, AI provider, multi-user tenancy, PostgreSQL 17, Flyway, Docker Compose for local development, browser session authentication, and deferral of mobile support are documented. Before starting the next application-code milestone, review [ARCHITECTURE.md](ARCHITECTURE.md) and explicitly resolve:
 
-- PostgreSQL version, migration tool, and local startup method.
+- Initial entity scope, tenant ownership constraints, indexes, Flyway/JDBC/Spring Boot dependency compatibility, and migration-job ownership.
+- PostgreSQL backup retention, encryption, off-site storage, point-in-time recovery, and tested recovery-point/recovery-time objectives.
 - File type/size limits, retention, backup, and malware-scanning approach.
 - Initial AI adapter contract and disclosure/consent behavior for external processing.
 - Session repository/scaling strategy, cookie settings by deployment profile, and concrete password-hashing configuration.
