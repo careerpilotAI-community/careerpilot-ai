@@ -18,7 +18,7 @@
 | Browser authentication | **Server-side sessions with a secure HttpOnly cookie** | The backend owns session state; the browser sends the session cookie automatically |
 | Mobile support | **Deferred** | The initial authentication design targets browser clients; mobile-specific authentication will be reviewed when mobile is prioritized |
 
-Specific hosting vendors, object-storage vendors, AI vendors beyond the local Ollama option, Flyway version/configuration, and detailed file/operational policies remain open until their respective design gates. See [File Storage Architecture](architecture/storage/FILE_STORAGE_ARCHITECTURE.md) for the upload lifecycle, adapter contract, validation, quarantine/scanning, authorization, retention, and recovery design.
+Specific hosting vendors, object-storage vendors, AI vendors beyond the local Ollama option, Flyway version/configuration, and detailed file/operational policies remain open until their respective design gates. See [File Storage Architecture](architecture/storage/FILE_STORAGE_ARCHITECTURE.md) for file safety and [AI Provider Architecture](architecture/ai/AI_PROVIDER_ARCHITECTURE.md) for provider isolation, privacy, consent, prompt-injection defenses, cost controls, and reliability.
 
 ## 2. High-level architecture
 
@@ -70,25 +70,10 @@ For the expanded diagrams, see [System Design Diagrams](architecture/SYSTEM_DESI
 - See [Database Architecture](architecture/database/DATABASE_ARCHITECTURE.md) for conceptual entities, tenant isolation, migration lifecycle, and backup/restore strategy.
 
 ### Document storage — hybrid
-Define a storage interface so product services do not depend on a vendor or filesystem API directly.
-
-- **Local adapter:** stores files on a configured local data directory.
-- **Object-storage adapter:** stores files in a configured S3-compatible or equivalent object store.
-- Select the adapter and location through backend environment configuration.
-- Store file metadata and ownership in PostgreSQL; do not expose raw storage paths or unrestricted object URLs.
-- Authorize every upload, download, replacement, and deletion against the owning user.
-- Keep private files outside public frontend assets and static web roots.
-- Backups, retention, file-size limits, content validation, and malware scanning policy must be defined before production use.
+See [File Storage Architecture](architecture/storage/FILE_STORAGE_ARCHITECTURE.md) for the backend-owned storage interface, private local/object adapters, quarantine and malware scanning, owner authorization, retention, and recovery design.
 
 ### AI integration — switchable
-Define a common AI interface for application features.
-
-- **Local option:** Ollama, reachable by the backend in the local or self-hosted environment.
-- **Cloud option:** a configured cloud AI provider accessed server-side.
-- Select provider/model through environment configuration; keep provider-specific settings in adapters.
-- Do not send user documents or personal data to an external provider without clear user-facing disclosure and an appropriate data-handling policy.
-- Handle provider timeouts, rate limits, unavailable models, and malformed responses.
-- AI output is advisory. Users remain responsible for reviewing career materials and approving consequential actions.
+See [AI Provider Architecture](architecture/ai/AI_PROVIDER_ARCHITECTURE.md) for the provider-neutral contract, Ollama/cloud adapters, server-side selection, data minimization and consent, prompt-injection controls, cost limits, resilience, and testing. AI output remains advisory and users review generated career materials; consequential actions require separate explicit approval.
 
 ## 4. Deployment modes
 
@@ -192,7 +177,7 @@ The deployment, storage, AI strategy, multi-user direction, PostgreSQL 17 baseli
 2. Database entity scope, owner-aware constraints, indexing, Flyway/JDBC compatibility, migration execution policy, and local Compose setup.
 3. PostgreSQL backup retention, encryption, off-site storage, point-in-time recovery, and tested RPO/RTO targets.
 4. File limits, allowed formats, retention, backup, and malware-scanning policy.
-5. Initial AI provider adapter contract and data-disclosure behavior.
+5. Initial AI provider adapter contract, cloud provider terms, consent/disclosure behavior, prompt-injection controls, and cost budgets.
 6. Session repository/scaling approach, cookie configuration by deployment profile, and concrete password-hashing configuration.
 7. Account registration, verification, recovery, deletion, and data-export behavior.
 8. Secrets management, HTTPS, CORS origins, logging, monitoring, and restore expectations for a public multi-user deployment.
