@@ -1,7 +1,7 @@
 # CareerPilot AI — Target Architecture
 
 **Status:** Proposed architecture approved for documentation; implementation is gated on review.  
-**Last updated:** 2026-11-08  
+**Last updated:** 2026-11-12  
 **Scope:** Deployment-independent target architecture for a multi-user application. This document describes intended design, not completed functionality.
 
 ## 1. Architecture decisions
@@ -30,7 +30,7 @@ flowchart TB
     FE -->|HTTPS / REST API| API[Spring Boot 3.5 + Java 21]
     API --> AUTH[Session Authentication & Authorization]
     API --> APP[CareerPilot Application Services]
-    APP --> DB[(PostgreSQL)]
+    APP --> DB[(PostgreSQL 17)]
     APP --> FS[Document Storage Adapter]
     APP --> AI[AI Provider Adapter]
     FS --> LOCAL[(Local File System)]
@@ -186,7 +186,7 @@ The cookie is a transport mechanism for the session identifier; it is not a JWT.
 
 ## 8. Review gates and open decisions
 
-The deployment, storage, AI strategy, multi-user direction, PostgreSQL baseline, browser session authentication, and deferral of mobile support are documented decisions. Before implementation begins, review and confirm:
+The deployment, storage, AI strategy, multi-user direction, PostgreSQL 17 baseline, Flyway migration tool, Docker Compose local setup, browser session authentication, and deferral of mobile support are documented decisions. Before implementation begins, review and confirm:
 
 1. This architecture and the Mermaid component/system diagrams.
 2. Database entity scope, owner-aware constraints, indexing, Flyway/JDBC compatibility, migration execution policy, and local Compose setup.
