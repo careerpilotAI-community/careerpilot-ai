@@ -58,7 +58,7 @@ The recommended MVP (Option A) is approved for product planning:
 - Mobile application/client and mobile-specific authentication.
 - Cloud AI as an implicit fallback; any future cloud use requires separate provider, privacy, consent, and cost approval.
 
-Detailed requirements, user journeys, feature boundaries, and the conceptual domain model are in [MVP Product Requirements](product/MVP_PRODUCT_REQUIREMENTS.md). The proposed physical schema and persistence gates are in [Database Schema & Persistence Readiness](architecture/DATABASE_SCHEMA_PERSISTENCE_READINESS.md); decisions are recorded in [Persistence Decision Review](architecture/PERSISTENCE_DECISION_REVIEW.md). Identity/session security requirements are proposed in [Identity, Session & Security Readiness](architecture/IDENTITY_SESSION_SECURITY_READINESS.md).
+Detailed requirements, user journeys, feature boundaries, and the conceptual domain model are in [MVP Product Requirements](product/MVP_PRODUCT_REQUIREMENTS.md). The proposed physical schema and persistence gates are in [Database Schema & Persistence Readiness](architecture/DATABASE_SCHEMA_PERSISTENCE_READINESS.md); decisions are recorded in [Persistence Decision Review](architecture/PERSISTENCE_DECISION_REVIEW.md). Identity/session security requirements are documented in [Identity, Session & Security Readiness](architecture/IDENTITY_SESSION_SECURITY_READINESS.md). The consolidated delivery sequence and gates are in [MVP Implementation Readiness](implementation/MVP_IMPLEMENTATION_READINESS.md).
 
 ## 5. Delivery roadmap and gates
 
@@ -69,14 +69,15 @@ Detailed requirements, user journeys, feature boundaries, and the conceptual dom
 | 2 — Product definition | MVP scope, requirements, boundaries, user journeys, conceptual domain model | **Scope approved; documentation prepared in Branch 17.** Merge/review does not authorize implementation |
 | 3 — Database schema readiness | Physical relational design, multi-user isolation, migration policy, backup/restore and persistence acceptance criteria | **Merged in PR #25; design decisions consolidated in merged PR #26** |
 | 4 — Persistence decision review | Resolve schema, ownership, application history, resume storage, retention, RLS and backup defaults | **Merged in PR #26; recommended persistence defaults recorded** |
-| 5 — Identity and session security readiness | Account lifecycle, server-side sessions, CSRF/CORS, secrets, authorization and security tests | **Prepared in Branch 20; awaiting review. Documentation only** |
-| 6 — Persistence implementation | PostgreSQL 17, Flyway, Docker Compose, repository integration tests | Not authorized; requires final identity/security and persistence gates plus explicit implementation approval |
-| 7 — Identity and isolation implementation | Account lifecycle, server-side sessions, CSRF, authorization, cross-user tests | Requires identity/security decisions and explicit implementation approval |
-| 8 — Core tracker | Profile, job records, application status and dashboard | Requires persistence and identity gates |
-| 9 — Resume/document management | Secure upload, versioning, storage adapter, scanning, retention and recovery | Requires file policies and storage security approval |
-| 10 — Local AI assistance | Ollama integration, job matching and resume suggestions | Requires model/hardware baseline, grounding, privacy, safety and quota decisions |
-| 11 — Local end-to-end validation | Integrated MVP workflows and recovery checks | Requires all preceding slices and explicit release criteria |
-| 12 — Later deployment modes | Self-hosted and cloud deployment guides/validation | Separate operational, security, privacy and cost review |
+| 5 — Identity and session security readiness | Account lifecycle, server-side sessions, CSRF/CORS, secrets, authorization and security tests | **Merged in PR #27; security design documented** |
+| 6 — MVP implementation readiness | Consolidated delivery slices, verification checklist, quality gates and remaining decisions | **Prepared in Branch 21; awaiting review. Documentation only** |
+| 7 — Persistence implementation | PostgreSQL 17, Flyway, Docker Compose, repository integration tests | Not authorized; requires approved readiness gates and explicit implementation approval |
+| 8 — Identity and isolation implementation | Account lifecycle, server-side sessions, CSRF, authorization, cross-user tests | Requires identity/security decisions and explicit implementation approval |
+| 9 — Core tracker | Profile, job records, application status and dashboard | Requires persistence and identity gates |
+| 10 — Resume/document management | Secure upload, versioning, storage adapter, scanning, retention and recovery | Requires file policies and storage security approval |
+| 11 — Local AI assistance | Ollama integration, job matching and resume suggestions | Requires model/hardware baseline, grounding, privacy, safety and quota decisions |
+| 12 — Local end-to-end validation | Integrated MVP workflows and recovery checks | Requires all preceding slices and explicit release criteria |
+| 13 — Later deployment modes | Self-hosted and cloud deployment guides/validation | Separate operational, security, privacy and cost review |
 
 Milestones are planning gates, not delivery-date commitments. No feature is complete merely because its requirements or architecture document is merged.
 
