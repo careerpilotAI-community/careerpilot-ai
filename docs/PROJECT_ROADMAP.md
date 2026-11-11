@@ -58,7 +58,7 @@ The recommended MVP (Option A) is approved for product planning:
 - Mobile application/client and mobile-specific authentication.
 - Cloud AI as an implicit fallback; any future cloud use requires separate provider, privacy, consent, and cost approval.
 
-Detailed requirements, user journeys, feature boundaries, and the conceptual domain model are in [MVP Product Requirements](product/MVP_PRODUCT_REQUIREMENTS.md).
+Detailed requirements, user journeys, feature boundaries, and the conceptual domain model are in [MVP Product Requirements](product/MVP_PRODUCT_REQUIREMENTS.md). The proposed physical schema and persistence gates are in [Database Schema & Persistence Readiness](architecture/DATABASE_SCHEMA_PERSISTENCE_READINESS.md).
 
 ## 5. Delivery roadmap and gates
 
@@ -67,13 +67,14 @@ Detailed requirements, user journeys, feature boundaries, and the conceptual dom
 | 0 — Architecture direction | Target architecture and specialist designs | Documented; operational decisions remain open |
 | 1 — Application foundation | Java/Spring Boot and React/Vite starter foundation | **Completed:** initial foundation merged in PR #7 |
 | 2 — Product definition | MVP scope, requirements, boundaries, user journeys, conceptual domain model | **Scope approved; documentation prepared in Branch 17.** Merge/review does not authorize implementation |
-| 3 — Persistence foundation | PostgreSQL 17, Flyway, Docker Compose, repository integration tests | Proposed next implementation-readiness gate; schema and operational decisions must be approved first |
-| 4 — Identity and isolation | Account lifecycle, server-side sessions, CSRF, authorization, cross-user tests | Requires identity/security decisions and explicit implementation approval |
-| 5 — Core tracker | Profile, job records, application status and dashboard | Requires persistence and identity gates |
-| 6 — Resume/document management | Secure upload, versioning, storage adapter, scanning, retention and recovery | Requires file policies and storage security approval |
-| 7 — Local AI assistance | Ollama integration, job matching and resume suggestions | Requires model/hardware baseline, grounding, privacy, safety and quota decisions |
-| 8 — Local end-to-end validation | Integrated MVP workflows and recovery checks | Requires all preceding slices and explicit release criteria |
-| 9 — Later deployment modes | Self-hosted and cloud deployment guides/validation | Separate operational, security, privacy and cost review |
+| 3 — Database schema readiness | Physical relational design, multi-user isolation, migration policy, backup/restore and persistence acceptance criteria | **Prepared in Branch 18; awaiting review/approval. Documentation only** |
+| 4 — Persistence implementation | PostgreSQL 17, Flyway, Docker Compose, repository integration tests | Not authorized; requires approved schema/operational decisions and explicit implementation approval |
+| 5 — Identity and isolation | Account lifecycle, server-side sessions, CSRF, authorization, cross-user tests | Requires identity/security decisions and explicit implementation approval |
+| 6 — Core tracker | Profile, job records, application status and dashboard | Requires persistence and identity gates |
+| 7 — Resume/document management | Secure upload, versioning, storage adapter, scanning, retention and recovery | Requires file policies and storage security approval |
+| 8 — Local AI assistance | Ollama integration, job matching and resume suggestions | Requires model/hardware baseline, grounding, privacy, safety and quota decisions |
+| 9 — Local end-to-end validation | Integrated MVP workflows and recovery checks | Requires all preceding slices and explicit release criteria |
+| 10 — Later deployment modes | Self-hosted and cloud deployment guides/validation | Separate operational, security, privacy and cost review |
 
 Milestones are planning gates, not delivery-date commitments. No feature is complete merely because its requirements or architecture document is merged.
 
