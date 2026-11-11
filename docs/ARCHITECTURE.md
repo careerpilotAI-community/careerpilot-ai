@@ -18,7 +18,7 @@
 | Browser authentication | **Server-side sessions with a secure HttpOnly cookie** | The backend owns session state; the browser sends the session cookie automatically |
 | Mobile support | **Deferred** | The initial authentication design targets browser clients; mobile-specific authentication will be reviewed when mobile is prioritized |
 
-Specific hosting vendors, object-storage vendors, AI vendors beyond the local Ollama option, Flyway version/configuration, and detailed file/operational policies remain open until their respective design gates. See [File Storage Architecture](architecture/storage/FILE_STORAGE_ARCHITECTURE.md) for file safety and [AI Provider Architecture](architecture/ai/AI_PROVIDER_ARCHITECTURE.md) for provider isolation, privacy, consent, prompt-injection defenses, cost controls, and reliability.
+Specific hosting vendors, object-storage vendors, AI vendors beyond the local Ollama option, Flyway version/configuration, and detailed file/operational policies remain open until their respective design gates. See [File Storage Architecture](architecture/storage/FILE_STORAGE_ARCHITECTURE.md) for file safety, [AI Provider Architecture](architecture/ai/AI_PROVIDER_ARCHITECTURE.md) for provider privacy and safety, and [Identity and Security Architecture](architecture/security/IDENTITY_SECURITY_ARCHITECTURE.md) for account lifecycle, authorization, session hardening, and security operations.
 
 ## 2. High-level architecture
 
@@ -160,7 +160,7 @@ The cookie is a transport mechanism for the session identifier; it is not a JWT.
 - Those capabilities may be useful for mobile clients or independently consumed APIs, but they add complexity without a current MVP requirement.
 - JWTs are not inherently safer than sessions, and putting JWTs in HttpOnly cookies would still require CSRF defenses.
 
-## 7. Operational and cost principles
+## 7. Identity and security design\n\nSee [Identity and Security Architecture](architecture/security/IDENTITY_SECURITY_ARCHITECTURE.md) for registration and verification, password handling, recovery, roles, owner-scoped authorization, CSRF/CORS, security headers, secrets, audit events, account export/deletion, threat modeling, and release-blocking tests. The selected browser session model remains unchanged; detailed operational values and account policies require approval before implementation.\n\n## 8. Operational and cost principles
 
 - Keep the application runnable locally without a paid service.
 - Treat free cloud tiers as optional deployment targets, not guaranteed production infrastructure.
@@ -169,7 +169,7 @@ The cookie is a transport mechanism for the session identifier; it is not a JWT.
 - Document database and document backup/restore procedures before production use.
 - Make resource-intensive or externally billed AI providers opt-in and configurable.
 
-## 8. Review gates and open decisions
+## 9. Review gates and open decisions
 
 The deployment, storage, AI strategy, multi-user direction, PostgreSQL 17 baseline, Flyway migration tool, Docker Compose local setup, browser session authentication, and deferral of mobile support are documented decisions. Before implementation begins, review and confirm:
 
@@ -181,6 +181,6 @@ The deployment, storage, AI strategy, multi-user direction, PostgreSQL 17 baseli
 6. Session repository/scaling approach, cookie configuration by deployment profile, and concrete password-hashing configuration.
 7. Account registration, verification, recovery, deletion, and data-export behavior.
 8. Secrets management, HTTPS, CORS origins, logging, monitoring, and restore expectations for a public multi-user deployment.
-9. The first deployment target used for end-to-end validation.
+9. Registration policy, verification delivery, password-hashing parameters, login abuse controls, session repository/timeouts, CSRF/CORS/proxy settings, MFA scope, role provisioning, account export/deletion, and security operations as detailed in [Identity and Security Architecture](architecture/security/IDENTITY_SECURITY_ARCHITECTURE.md).\n10. The first deployment target used for end-to-end validation.
 
 **Implementation gate:** Do not begin the next application-code milestone until this document and its remaining open decisions have been reviewed. Approval of the documented authentication direction does not by itself authorize implementation or resolve the operational details above.
