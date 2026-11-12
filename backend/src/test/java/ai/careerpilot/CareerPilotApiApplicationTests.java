@@ -222,7 +222,9 @@ class CareerPilotApiApplicationTests {
         mockMvc.perform(post("/api/applications")
                 .with(user(owner.getEmail())).with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{\\"jobId\\":\\""+jobId+"\\",\\"status\\":\\"APPLIED\\"}"))
+                .content("""
+                    {"jobId":"%s","status":"APPLIED"}
+                    """.formatted(jobId)))
             .andExpect(status().isCreated());
 
         mockMvc.perform(get("/api/dashboard/summary").with(user(owner.getEmail())))
