@@ -125,6 +125,19 @@ The V1 database constraint defines application statuses as `SAVED`, `PREPARING`,
 
 Branch 22 remains a historical read-only audit of the pre-Branch-23 tree. Its findings must not be repeated as current-state claims. PR #30's recorded CI run is historical evidence, not a claim that Branch 28 has passed CI. Branch protection and required-check enforcement remain unverified through the available repository connection.
 
-## 9. Change control
+## 9. Branch 30 — Resume management implementation
+
+Branch 30 implements the first local-first slice:
+- PostgreSQL migration V3 stores owner-scoped metadata and opaque storage keys; binary files remain outside PostgreSQL.
+- Private local filesystem storage under an absolute configurable data root, separate quarantine and available areas, generated UUID keys, restrictive POSIX permissions where supported, and atomic promotion.
+- PDF and DOCX only; PDF parsing with PDFBox; DOCX ZIP/XML structural validation with external entities disabled, entry and expanded-size bounds; 10 MiB per-file ceiling.
+- SHA-256 checksum, immutable original/tailored asset rows, owner-scoped list/download APIs, attachment-only downloads, nosniff, and private/no-store caching.
+- ClamAV INSTREAM scanning is the default and any scanner error/unavailable/unknown verdict rejects the upload. The local profile bypass is restricted to synthetic fixtures containing the test marker; it is not suitable for real resumes or hosted deployments.
+- Configurable defaults: 100 MiB per user and 2 GiB per deployment. PostgreSQL advisory transaction locking serializes quota checks during upload.
+- The frontend supports upload, list, and authenticated download; no delete, replace-in-place, AI parsing, or automatic resume generation is included.
+
+Operational limitations remain: no backup/restore automation, encryption-at-rest/key management, retention/account-deletion workflow, orphan reconciliation job, upload rate limiting, or hosted deployment readiness. Local storage permissions depend on the host OS; Windows ACLs must be configured on the private data root. Keep this feature local-only until those deployment controls are separately resolved.
+
+## 10. Change control
 
 Record material scope or architecture changes in pull requests, explain the reason, and update this roadmap and affected specialist documents. Keep approved decisions distinct from recommendations and unresolved proposals.
