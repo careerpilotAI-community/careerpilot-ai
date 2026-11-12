@@ -31,6 +31,8 @@ jobs:
         run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
       - name: Install from lockfile
         run: npm ci
+      - name: Apply repository formatting
+        run: npm run format
       - name: Lint
         run: npm run lint
       - name: Check formatting
@@ -42,6 +44,18 @@ jobs:
       - name: Show npm diagnostics on failure
         if: failure()
         run: cat "$(ls -t ~/.npm/_logs/* | head -n 1)"
+      - name: Upload formatted frontend files
+        uses: actions/upload-artifact@v4
+        with:
+          name: branch-23-formatted-frontend
+          path: |
+            frontend/index.html
+            frontend/src/**
+            frontend/*.json
+            frontend/*.js
+            frontend/*.ts
+          if-no-files-found: error
+          retention-days: 7
       - name: Upload generated lockfile
         uses: actions/upload-artifact@v4
         with:
@@ -96,6 +110,11 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: branch-23-build-quality-baseline-improvements
+      - name: Download formatted frontend files
+        uses: actions/download-artifact@v4
+        with:
+          name: branch-23-formatted-frontend
+          path: frontend
       - name: Download frontend lockfile
         uses: actions/download-artifact@v4
         with:
@@ -111,6 +130,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           chmod +x backend/mvnw
+          git add -u frontend
           git add frontend/package-lock.json backend/mvnw backend/mvnw.cmd backend/.mvn/wrapper/maven-wrapper.properties
           if git diff --cached --quiet; then
             echo "No generated build artifacts changed."
