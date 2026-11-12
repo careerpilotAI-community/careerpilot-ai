@@ -22,10 +22,22 @@ export default function ResumeManager({ csrf }: { csrf: Csrf }) {
   }, []);
 
   useEffect(() => {
-    void refresh().catch((error: unknown) =>
-      setMessage(error instanceof Error ? error.message : 'Unable to load documents.'),
-    );
-  }, [refresh]);
+    let active = true;
+    void fetch('/api/resumes', { credentials: 'include' })
+      .then(async (response) => {
+        if (!response.ok) throw new Error('Unable to load resume documents.');
+        return (await response.json()) as ResumeAsset[];
+      })
+      .then((data) => {
+        if (active) setAssets(data);
+      })
+      .catch((error: unknown) => {
+        if (active) setMessage(error instanceof Error ? error.message : 'Unable to load documents.');
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   async function upload(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
