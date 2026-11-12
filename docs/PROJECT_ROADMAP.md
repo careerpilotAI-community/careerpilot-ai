@@ -25,8 +25,8 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) and the specialist architecture documents
 | Area | Direction |
 |---|---|
 | Deployment | Local-first initial validation; same codebase intended for local, self-hosted, and cloud |
-| Frontend | React 19, Vite, TypeScript (verify exact manifest versions before implementation) |
-| Backend | Java 21, Spring Boot 3.5.x, Maven (verify exact manifest versions before implementation) |
+| Frontend | React 19, Vite, TypeScript (exact manifest versions verified in Branch 22 audit) |
+| Backend | Java 21, Spring Boot 3.5.11, Maven (exact manifest versions verified in Branch 22 audit) |
 | Database | PostgreSQL 17 |
 | Migrations | Flyway |
 | Local database | Docker Compose; native PostgreSQL may remain an alternative |
@@ -58,7 +58,7 @@ The recommended MVP (Option A) is approved for product planning:
 - Mobile application/client and mobile-specific authentication.
 - Cloud AI as an implicit fallback; any future cloud use requires separate provider, privacy, consent, and cost approval.
 
-Detailed requirements, user journeys, feature boundaries, and the conceptual domain model are in [MVP Product Requirements](product/MVP_PRODUCT_REQUIREMENTS.md). The proposed physical schema and persistence gates are in [Database Schema & Persistence Readiness](architecture/DATABASE_SCHEMA_PERSISTENCE_READINESS.md); decisions are recorded in [Persistence Decision Review](architecture/PERSISTENCE_DECISION_REVIEW.md). Identity/session security requirements are documented in [Identity, Session & Security Readiness](architecture/IDENTITY_SESSION_SECURITY_READINESS.md). The consolidated delivery sequence and gates are in [MVP Implementation Readiness](implementation/MVP_IMPLEMENTATION_READINESS.md).
+Detailed requirements, user journeys, feature boundaries, and the conceptual domain model are in [MVP Product Requirements](product/MVP_PRODUCT_REQUIREMENTS.md). The proposed physical schema and persistence gates are in [Database Schema & Persistence Readiness](architecture/DATABASE_SCHEMA_PERSISTENCE_READINESS.md); decisions are recorded in [Persistence Decision Review](architecture/PERSISTENCE_DECISION_REVIEW.md). Identity/session security requirements are documented in [Identity, Session & Security Readiness](architecture/IDENTITY_SESSION_SECURITY_READINESS.md). The consolidated delivery sequence and gates are in [MVP Implementation Readiness](implementation/MVP_IMPLEMENTATION_READINESS.md). The repository baseline and build/quality findings are in [Branch 22 Build & Quality Baseline Audit](implementation/BUILD_QUALITY_BASELINE_AUDIT.md).
 
 ## 5. Delivery roadmap and gates
 
@@ -70,14 +70,16 @@ Detailed requirements, user journeys, feature boundaries, and the conceptual dom
 | 3 — Database schema readiness | Physical relational design, multi-user isolation, migration policy, backup/restore and persistence acceptance criteria | **Merged in PR #25; design decisions consolidated in merged PR #26** |
 | 4 — Persistence decision review | Resolve schema, ownership, application history, resume storage, retention, RLS and backup defaults | **Merged in PR #26; recommended persistence defaults recorded** |
 | 5 — Identity and session security readiness | Account lifecycle, server-side sessions, CSRF/CORS, secrets, authorization and security tests | **Merged in PR #27; security design documented** |
-| 6 — MVP implementation readiness | Consolidated delivery slices, verification checklist, quality gates and remaining decisions | **Prepared in Branch 21; awaiting review. Documentation only** |
-| 7 — Persistence implementation | PostgreSQL 17, Flyway, Docker Compose, repository integration tests | Not authorized; requires approved readiness gates and explicit implementation approval |
-| 8 — Identity and isolation implementation | Account lifecycle, server-side sessions, CSRF, authorization, cross-user tests | Requires identity/security decisions and explicit implementation approval |
-| 9 — Core tracker | Profile, job records, application status and dashboard | Requires persistence and identity gates |
-| 10 — Resume/document management | Secure upload, versioning, storage adapter, scanning, retention and recovery | Requires file policies and storage security approval |
-| 11 — Local AI assistance | Ollama integration, job matching and resume suggestions | Requires model/hardware baseline, grounding, privacy, safety and quota decisions |
-| 12 — Local end-to-end validation | Integrated MVP workflows and recovery checks | Requires all preceding slices and explicit release criteria |
-| 13 — Later deployment modes | Self-hosted and cloud deployment guides/validation | Separate operational, security, privacy and cost review |
+| 6 — MVP implementation readiness | Consolidated delivery slices, verification checklist, quality gates and remaining decisions | **Merged in PR #28; implementation sequence documented** |
+| 7 — Build & quality baseline audit | Verify actual repository manifests, starter code, tests, CI and reproducibility gaps | **Completed in Branch 22 audit; documentation only. No application code changed** |
+| 8 — Build & quality baseline improvements | Deterministic builds, frontend lockfile, wrapper decision, required CI checks and test conventions | Not authorized; requires explicit implementation approval |
+| 9 — Persistence implementation | PostgreSQL 17, Flyway, Docker Compose, repository integration tests | Not authorized; requires approved readiness gates and explicit implementation approval |
+| 10 — Identity and isolation implementation | Account lifecycle, server-side sessions, CSRF, authorization, cross-user tests | Requires identity/security decisions and explicit implementation approval |
+| 11 — Core tracker | Profile, job records, application status and dashboard | Requires persistence and identity gates |
+| 12 — Resume/document management | Secure upload, versioning, storage adapter, scanning, retention and recovery | Requires file policies and storage security approval |
+| 13 — Local AI assistance | Ollama integration, job matching and resume suggestions | Requires model/hardware baseline, grounding, privacy, safety and quota decisions |
+| 14 — Local end-to-end validation | Integrated MVP workflows and recovery checks | Requires all preceding slices and explicit release criteria |
+| 15 — Later deployment modes | Self-hosted and cloud deployment guides/validation | Separate operational, security, privacy and cost review |
 
 Milestones are planning gates, not delivery-date commitments. No feature is complete merely because its requirements or architecture document is merged.
 
@@ -108,9 +110,11 @@ Set numeric targets after a baseline exists.
 
 ## 8. Current implementation gate
 
-Branch 17 approves the **product scope for planning**, not implementation. Before coding, the project must resolve the database schema and migration policy, backup/restore expectations, identity/session/CSRF/password controls, authorization tests, document upload/storage/scanning policy, Ollama model requirements, AI grounding and privacy controls, CI/security gates, and milestone acceptance criteria.
+Branch 22 confirms that the current repository is still a starter foundation: the backend has only the application entry point and a context-load test; the frontend is a static starter screen; PostgreSQL, Flyway, Docker Compose, authentication, document storage and AI integration are not yet implemented. The CI workflow builds/verifies the backend and builds the frontend, but frontend dependency installation is not lockfile-deterministic and the repository ruleset/required-check configuration remains unverified.
 
-The next step is a separate review/readiness milestone. The user must explicitly authorize any implementation branch. Documentation-only approval is not coding authorization.
+The next recommended slice is a bounded build/quality baseline improvement. Before persistence coding, resolve the database schema and migration policy, backup/restore expectations, identity/session/CSRF/password controls, authorization tests, document upload/storage/scanning policy, Ollama model requirements, AI grounding and privacy controls, and milestone acceptance criteria.
+
+The user must explicitly authorize any implementation branch. Documentation-only approval is not coding authorization.
 
 ## 9. Change control
 
