@@ -14,8 +14,10 @@ function App() {
 
   async function refreshCsrf() {
     const response = await fetch('/api/auth/csrf', { credentials: 'include' });
-    if (!response.ok) throw new Error('Unable to initialize secure session.');
-    setCsrf(await response.json() as CsrfState);
+    if (!response.ok) {
+      throw new Error('Unable to initialize secure session.');
+    }
+    setCsrf((await response.json()) as CsrfState);
   }
 
   useEffect(() => {
@@ -24,7 +26,7 @@ function App() {
         await refreshCsrf();
         const response = await fetch('/api/auth/me', { credentials: 'include' });
         if (response.ok) {
-          const account = await response.json() as { email: string };
+          const account = (await response.json()) as { email: string };
           setAuthenticatedEmail(account.email);
         }
       } catch {
@@ -39,16 +41,30 @@ function App() {
     setBusy(true);
     setMessage('');
     try {
-      const response = await fetch(registerMode ? '/api/auth/register' : '/api/auth/login', {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json', [csrf.headerName]: csrf.token },
-        body: JSON.stringify({ email, password }),
-      });
-      const result = await response.json().catch(() => ({})) as { email?: string; message?: string };
-      if (!response.ok) throw new Error(result.message ?? 'Authentication failed.');
+      const response = await fetch(
+        registerMode ? '/api/auth/register' : '/api/auth/login',
+        {
+          method: 'POST',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+            [csrf.headerName]: csrf.token,
+          },
+          body: JSON.stringify({ email, password }),
+        },
+      );
+      const result = (await response.json().catch(() => ({}))) as {
+        email?: string;
+        message?: string;
+      };
+      if (!response.ok) {
+        throw new Error(result.message ?? 'Authentication failed.');
+      }
       if (registerMode) {
-        setMessage(result.message ?? 'If registration is available, your account can now be used.');
+        setMessage(
+          result.message ??
+            'If registration is available, your account can now be used.',
+        );
         setRegisterMode(false);
         setPassword('');
       } else {
@@ -58,7 +74,9 @@ function App() {
       }
       await refreshCsrf();
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Something went wrong.');
+      setMessage(
+        error instanceof Error ? error.message : 'Something went wrong.',
+      );
       await refreshCsrf().catch(() => undefined);
     } finally {
       setBusy(false);
@@ -88,10 +106,13 @@ function App() {
     <main className="page-shell">
       <section className="hero" aria-labelledby="page-title">
         <p className="eyebrow">CAREERPILOT AI</p>
-        <h1 id="page-title">Your career journey, <span>with a co-pilot.</span></h1>
+        <h1 id="page-title">
+          Your career journey, <span>with a co-pilot.</span>
+        </h1>
         <p className="intro">
-          A private workspace for organizing opportunities, preparing applications,
-          and building interview confidence — with you in control.
+          A private workspace for organizing opportunities, preparing
+          applications, and building interview confidence — with you in
+          control.
         </p>
         {authenticatedEmail ? (
           <div className="status-card">
@@ -99,33 +120,73 @@ function App() {
             <div>
               <strong>Signed in as {authenticatedEmail}</strong>
               <p>Your account session is protected by the backend.</p>
-              <button type="button" onClick={() => void logout()} disabled={busy}>Sign out</button>
+              <button type="button" onClick={() => void logout()} disabled={busy}>
+                Sign out
+              </button>
             </div>
           </div>
         ) : (
-          <form className="status-card auth-form" onSubmit={(event) => void submit(event)}>
+          <form
+            className="status-card auth-form"
+            onSubmit={(event) => void submit(event)}
+          >
             <div>
-              <strong>{registerMode ? 'Create your account' : 'Sign in to your workspace'}</strong>
+              <strong>
+                {registerMode ? 'Create your account' : 'Sign in to your workspace'}
+              </strong>
               <label htmlFor="email">Email</label>
-              <input id="email" type="email" autoComplete="email" required maxLength={320}
-                value={email} onChange={(event) => setEmail(event.target.value)} />
+              <input
+                id="email"
+                type="email"
+                autoComplete="email"
+                required
+                maxLength={320}
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+              />
               <label htmlFor="password">Password</label>
-              <input id="password" type="password"
-                autoComplete={registerMode ? 'new-password' : 'current-password'}
-                required minLength={registerMode ? 12 : 1} maxLength={128}
-                value={password} onChange={(event) => setPassword(event.target.value)} />
+              <input
+                id="password"
+                type="password"
+                autoComplete={
+                  registerMode ? 'new-password' : 'current-password'
+                }
+                required
+                minLength={registerMode ? 12 : 1}
+                maxLength={128}
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+              />
               <button type="submit" disabled={busy || !csrf}>
-                {busy ? 'Please wait…' : registerMode ? 'Create account' : 'Sign in'}
+                {busy
+                  ? 'Please wait…'
+                  : registerMode
+                    ? 'Create account'
+                    : 'Sign in'}
               </button>
-              <button type="button" className="secondary-button"
-                onClick={() => { setRegisterMode(!registerMode); setMessage(''); }}>
-                {registerMode ? 'Already have an account? Sign in' : 'New here? Create an account'}
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={() => {
+                  setRegisterMode(!registerMode);
+                  setMessage('');
+                }}
+              >
+                {registerMode
+                  ? 'Already have an account? Sign in'
+                  : 'New here? Create an account'}
               </button>
             </div>
           </form>
         )}
-        {message && <p role="status" className="footnote">{message}</p>}
-        <p className="footnote">AI suggestions will always be yours to review and approve.</p>
+        {message && (
+          <p role="status" className="footnote">
+            {message}
+          </p>
+        )}
+        <p className="footnote">
+          AI suggestions will always be yours to review and approve.
+        </p>
       </section>
     </main>
   );
