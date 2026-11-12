@@ -1,6 +1,6 @@
 # CareerPilot AI — Product Roadmap
 
-**Status:** PostgreSQL persistence (Branch 26), identity/session security (Branch 27), and core career tracker (Branch 28) merged; Branch 29 resume-management policy documented  
+**Status:** PostgreSQL persistence (Branch 26), identity/session security (Branch 27), core career tracker (Branch 28), and secure resume management (Branch 30) merged; Branch 31 lifecycle/recovery design documented  
 **Last updated:** 2026-11-12  
 **Scope:** Product direction and delivery phases; capabilities are plans unless explicitly marked complete.
 
@@ -118,8 +118,9 @@ The repository's current implementation is materially beyond the historical Bran
 - **Persistence:** Branch 26 / PR #33 added PostgreSQL 17.6 Compose support, Flyway V1/V2 migrations, JPA entities/repositories, owner-aware constraints and PostgreSQL Testcontainers coverage.
 - **Identity/security:** Branch 27 / PR #34 added Argon2id password hashing, local-profile registration, server-side JDBC sessions, CSRF, explicit CORS, session rotation and expiry, and authentication UI. Email verification, password recovery, rate limiting and public registration hardening remain out of scope.
 - **Core tracker:** Branch 28 / PR #35 is merged. It implements profile and skills management, owner-scoped job and application workflows, dashboard summaries, responsive React workspace integration and cross-user integration coverage. Backend Maven verification and frontend install/lint/format/tests/build passed in CI run `43177048994`.
-- **Resume management:** Branch 29 approved PDF/DOCX-only uploads, a 10 MiB per-file ceiling, private local filesystem storage, opaque IDs, metadata-only PostgreSQL records, backend streaming, immutable originals/tailored versions, and hosted fail-closed scanning. Branch 29 is documentation only; upload/storage code is not implemented.
-- **Not yet implemented:** resume/document upload and storage, Ollama integration, AI job matching/suggestions, end-to-end recovery/backup validation and release readiness.
+- **Resume management:** Branch 30 / PR #38 is merged. It implements PDF/DOCX upload, private local filesystem storage, ClamAV scanning, quotas, owner-scoped metadata/list/download, and immutable original/tailored assets. It remains a local-first implementation, not hosted-production ready.
+- **Lifecycle/recovery:** Branch 31 defines deletion, retention, reconciliation, coordinated backup/restore, encryption/key management, Windows ACL, scanner operations, and explicit local readiness gates. It is documentation only; none of those controls are claimed implemented or verified.
+- **Not yet implemented:** resume deletion/retention jobs, storage reconciliation, backup/restore automation and restore drills, encryption/key management, Ollama integration, AI job matching/suggestions, and integrated local release validation.
 
 The V1 database constraint defines application statuses as `SAVED`, `PREPARING`, `APPLIED`, `INTERVIEWING`, `OFFER`, `REJECTED`, `WITHDRAWN`, and `CLOSED`; application APIs and UI must use this exact vocabulary. The schema currently supports one current application per user/job; re-application history remains deferred.
 
@@ -138,6 +139,12 @@ Branch 30 implements the first local-first slice:
 
 Operational limitations remain: no backup/restore automation, encryption-at-rest/key management, retention/account-deletion workflow, orphan reconciliation job, upload rate limiting, or hosted deployment readiness. Local storage permissions depend on the host OS; Windows ACLs must be configured on the private data root. Keep this feature local-only until those deployment controls are separately resolved.
 
-## 10. Change control
+## 10. Branch 31 — Resume lifecycle and recovery readiness
+
+Branch 31 is a documentation-only design milestone. It defines immutable asset lifecycle and tombstone deletion, retention/account-deletion decisions still requiring product/privacy approval, read-only-first storage reconciliation, coordinated PostgreSQL + filesystem backups, restore-drill acceptance, encryption/key-management requirements, Windows ACL verification, scanner observability, abuse controls, and operational runbooks. See [Resume Lifecycle & Recovery Readiness](architecture/storage/RESUME_LIFECYCLE_RECOVERY_READINESS.md).
+
+**Local deployment status:** synthetic-data build validation is distinct from use with real personal resumes. Real-resume local use is not yet approved until the non-local profile, live ClamAV scanning, persistent private data root, verified Windows ACLs, coordinated backup/restore drill, encryption decision, privacy-safe logging, and authorization tests are implemented and verified. Hosted/public deployment remains not ready. The project owner must be explicitly notified when a later implementation and verification milestone satisfies the local real-resume gate.
+
+## 11. Change control
 
 Record material scope or architecture changes in pull requests, explain the reason, and update this roadmap and affected specialist documents. Keep approved decisions distinct from recommendations and unresolved proposals.

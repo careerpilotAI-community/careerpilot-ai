@@ -217,3 +217,24 @@ This is not hosted-production readiness. Backups/restores, encryption and key ma
 The initial hosted deployment must not proceed until the open security and operational items relevant to that deployment are resolved. A local implementation may proceed only under a separately approved Branch 30 implementation scope and must preserve the hosted fail-closed boundary.
 
 **Implementation record:** Branch 29 remains a documentation-only decision record and introduced no runtime implementation. Branch 30, separately approved, adds the first local filesystem upload/list/download slice described above. Its implementation does not close the outstanding hosted-deployment security and operations gates.
+
+
+## 13. Branch 31 — lifecycle, recovery, and local deployment gates
+
+Branch 31 is documentation only; it changes no runtime behavior. The detailed policy and acceptance criteria are in [Resume Lifecycle & Recovery Readiness](RESUME_LIFECYCLE_RECOVERY_READINESS.md).
+
+Key requirements before enabling lifecycle features:
+- Deletion immediately makes an asset inaccessible through a tombstone/DELETING state; physical cleanup is idempotent and retryable.
+- Retention periods and account-deletion semantics must be approved before cleanup jobs are implemented.
+- Reconciliation begins report-only and must never auto-promote unknown or unscanned objects.
+- PostgreSQL and document binaries require coordinated backups and a successful isolated restore drill with checksum and ownership verification.
+- Encryption-at-rest, key custody/rotation/recovery, encrypted backups, and Windows ACLs require explicit verification.
+- Scanner version/signature metadata, health monitoring, rate/concurrency controls, and incident runbooks remain future implementation work.
+
+### Local readiness classification
+
+1. **Synthetic-data code/build validation:** can be performed with synthetic fixtures and must not be represented as real-resume readiness.
+2. **Real personal resume use:** not approved until the default non-`local` profile, reachable ClamAV scanner, persistent data root outside the repository, verified Windows ACLs, coordinated backup/restore drill, encryption decision, privacy-safe logging, and owner-isolation tests are implemented and verified.
+3. **Hosted/public deployment:** not ready; requires a separate security and operational review.
+
+Do not use the local scanner-bypass profile for real resumes. Do not claim recoverability until a restore drill passes.
