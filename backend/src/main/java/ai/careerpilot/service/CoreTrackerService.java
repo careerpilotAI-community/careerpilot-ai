@@ -18,7 +18,7 @@ import java.util.stream.Collectors;
 @Service
 @Transactional
 public class CoreTrackerService {
- private static final Set<String> STATUSES=Set.of("SAVED","APPLIED","SCREENING","INTERVIEW","OFFER","REJECTED","WITHDRAWN");
+ private static final Set<String> STATUSES=Set.of("SAVED","PREPARING","APPLIED","INTERVIEWING","OFFER","REJECTED","WITHDRAWN","CLOSED");
  private final UserRepository users; private final CareerProfileRepository profiles; private final ProfileSkillRepository skills;
  private final JobRepository jobs; private final ApplicationRepository applications; private final ObjectMapper mapper;
  public CoreTrackerService(UserRepository users,CareerProfileRepository profiles,ProfileSkillRepository skills,JobRepository jobs,ApplicationRepository applications,ObjectMapper mapper){
