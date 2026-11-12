@@ -24,13 +24,17 @@ function App() {
     void (async () => {
       try {
         await refreshCsrf();
-        const response = await fetch('/api/auth/me', { credentials: 'include' });
+        const response = await fetch('/api/auth/me', {
+          credentials: 'include',
+        });
         if (response.ok) {
           const account = (await response.json()) as { email: string };
           setAuthenticatedEmail(account.email);
         }
       } catch {
-        setMessage('The API is not available yet. Start the backend and try again.');
+        setMessage(
+          'The API is not available yet. Start the backend and try again.',
+        );
       }
     })();
   }, []);
@@ -120,7 +124,11 @@ function App() {
             <div>
               <strong>Signed in as {authenticatedEmail}</strong>
               <p>Your account session is protected by the backend.</p>
-              <button type="button" onClick={() => void logout()} disabled={busy}>
+              <button
+                type="button"
+                onClick={() => void logout()}
+                disabled={busy}
+              >
                 Sign out
               </button>
             </div>
@@ -132,7 +140,9 @@ function App() {
           >
             <div>
               <strong>
-                {registerMode ? 'Create your account' : 'Sign in to your workspace'}
+                {registerMode
+                  ? 'Create your account'
+                  : 'Sign in to your workspace'}
               </strong>
               <label htmlFor="email">Email</label>
               <input
