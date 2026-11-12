@@ -1,6 +1,6 @@
 # Branch 21 — MVP Implementation Readiness & Delivery Plan
 
-**Status:** Documentation baseline; Branch 23 build/quality slice completed in PR #30; product implementation remains gated  
+**Status:** Documentation baseline; Branches 23–28 implementation slices merged; Branch 29 resume-management policy decisions documented  
 **Date:** 2026-11-12  
 **Prerequisites:** Approved MVP (Branch 17), database design and decisions (Branches 18–19), identity/session security design (Branch 20)
 
@@ -153,8 +153,34 @@ This addendum supersedes earlier statements in this planning document that descr
 | Build and quality baseline | Branch 23 / PR #30 merged; successful CI run is recorded in that PR. |
 | PostgreSQL persistence | Branch 26 / PR #33 merged: PostgreSQL 17.6 Compose service, Flyway migrations, JPA entities/repositories, owner-aware constraints and Testcontainers tests. |
 | Identity and session security | Branch 27 / PR #34 merged: Argon2id, local-profile registration, JDBC-backed sessions, CSRF, CORS, session rotation/expiry and sign-in UI. |
-| Core tracker | Implemented in Branch 28 / open PR #35: profile/skills CRUD, saved-job CRUD, application tracking and detail updates, dashboard summary, owner-scoped API operations, React workspace and integration tests. Backend Maven verification and frontend install/lint/format/tests/build passed in CI run `43176893963`; review/merge pending. |
+| Core tracker | Branch 28 / PR #35 merged: profile/skills CRUD, saved-job CRUD, application tracking and detail updates, dashboard summary, owner-scoped API operations, React workspace and integration tests. Backend Maven verification and frontend install/lint/format/tests/build passed in CI run `43177048994`. |
 
 Branch 28 must use the existing V1 schema without rewriting applied migrations. Its application status vocabulary must match the database constraint exactly: SAVED, PREPARING, APPLIED, INTERVIEWING, OFFER, REJECTED, WITHDRAWN and CLOSED. One current application per user/job remains the MVP model; re-application history is deferred.
 
 The tracker implementation is not considered complete until backend Maven verification, frontend typecheck/lint/format/tests/build and PR CI have been reviewed. The repository connection has not independently verified branch protection or required-check enforcement. Resume/document management, Ollama integration, AI assistance, backup/restore validation and integrated local MVP release readiness remain future slices.
+
+
+## 10. Resume-management policy decisions — Branch 29
+
+Branch 29 is a documentation-only decision finalization. It does not implement upload or storage behavior.
+
+### Approved initial constraints
+
+- Accept PDF and DOCX only; reject legacy DOC, macro-enabled Office formats, archives, executables, HTML, SVG, scripts and arbitrary binaries.
+- Enforce a 10 MiB maximum per file at ingress, framework, service and storage boundaries.
+- Store binaries in a private local filesystem data root outside the repository, web root and public assets. Keep an application-owned storage interface so a future S3-compatible adapter can be selected by server-side deployment configuration.
+- Generate opaque UUID asset IDs and storage keys. Never use user-provided filenames as filesystem paths or object keys.
+- Store metadata and opaque keys in PostgreSQL; never store binary document content there by default.
+- Stream downloads through the backend after session-derived owner authorization. Do not expose public URLs or browser storage credentials.
+- Keep originals immutable. Tailored documents and replacement uploads are separate immutable assets/versions.
+- Quarantine and validate uploads before scanning; only AVAILABLE assets can be downloaded or processed by AI. Hosted deployments fail closed if scanning is unavailable, times out or returns an indeterminate verdict. A scanner-disabled profile is limited to isolated local single-user development with synthetic test files.
+
+### Required asset lifecycle
+
+`PENDING → QUARANTINED → SCANNING → AVAILABLE`; failures become `REJECTED` or `FAILED`; deletion transitions through `DELETING` before cleanup. A replacement is promoted only after validation, scanning and checksum verification. Reconciliation must handle stale pending rows, orphaned objects and missing objects.
+
+### Open before implementation/release
+
+Per-user/deployment quotas; concrete scanner and operational runbook; local data-root/volume/permissions; encryption and key recovery; retention and account-deletion semantics; coordinated database/file backup and restore; operational monitoring and incident response.
+
+**Next implementation gate:** Branch 30 may implement secure resume management only after a separate explicit approval of its bounded implementation scope. Branch 29 merge alone does not authorize code, migrations, dependencies, endpoints, UI, scanner setup or runtime configuration.
