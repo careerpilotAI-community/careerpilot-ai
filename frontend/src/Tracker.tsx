@@ -1,0 +1,39 @@
+import { useEffect, useState } from 'react';
+type Csrf={headerName:string;token:string};
+type Job={id:string;title:string;companyName:string;location:string|null};
+type Skill={id:string;skillName:string};
+type AppRecord={id:string;jobId:string;jobTitle:string;companyName:string;status:string;appliedDate:string|null;notes:string|null;nextActionDate:string|null;interviewAt:string|null;interviewTimezone:string|null};
+type Profile={displayName:string|null;professionalSummary:string|null;experienceYears:number|null};
+type Summary={totalJobs:number;totalApplications:number;applicationsByStatus:Record<string,number>;upcomingInterviews:{applicationId:string;jobTitle:string;companyName:string;interviewAt:string}[]};
+const statuses=['SAVED','APPLIED','SCREENING','INTERVIEW','OFFER','REJECTED','WITHDRAWN'];
+export default function Tracker({csrf}:{csrf:Csrf}){
+ const [profile,setProfile]=useState({displayName:'',professionalSummary:'',experienceYears:''});
+ const [skills,setSkills]=useState<Skill[]>([]);const [jobs,setJobs]=useState<Job[]>([]);const [apps,setApps]=useState<AppRecord[]>([]);
+ const [summary,setSummary]=useState<Summary|null>(null);const [skillName,setSkillName]=useState('');const [title,setTitle]=useState('');const [company,setCompany]=useState('');const [location,setLocation]=useState('');const [selectedJob,setSelectedJob]=useState('');
+ const [error,setError]=useState('');const [notice,setNotice]=useState('');const [busy,setBusy]=useState(false);
+ async function api<T>(path:string,method='GET',body?:unknown):Promise<T>{const r=await fetch(path,{method,credentials:'include',headers:{...(body?{'Content-Type':'application/json'}:{}),...(method!=='GET'?{[csrf.headerName]:csrf.token}:{})},...(body?{body:JSON.stringify(body)}:{})});if(!r.ok){const x=await r.json().catch(()=>({})) as {detail?:string;message?:string};throw new Error(x.detail??x.message??`Request failed (${r.status})`);}if(r.status===204)return undefined as T;return await r.json() as T;}
+ async function load(){try{const [p,s,j,a,d]=await Promise.all([api<Profile>('/api/profile'),api<Skill[]>('/api/profile/skills'),api<Job[]>('/api/jobs'),api<AppRecord[]>('/api/applications'),api<Summary>('/api/dashboard/summary')]);setProfile({displayName:p.displayName??'',professionalSummary:p.professionalSummary??'',experienceYears:p.experienceYears?.toString()??''});setSkills(s);setJobs(j);setApps(a);setSummary(d);setError('');}catch(e){setError(e instanceof Error?e.message:'Unable to load workspace.');}}
+ useEffect(()=>{void load();},[]);
+ async function run(fn:()=>Promise<unknown>,message:string){setBusy(true);setError('');setNotice('');try{await fn();setNotice(message);await load();}catch(e){setError(e instanceof Error?e.message:'Something went wrong.');}finally{setBusy(false);}}
+ return <section className="tracker-shell" aria-label="Career workspace">
+  <div className="tracker-heading"><div><p className="eyebrow">YOUR WORKSPACE</p><h2>Career tracker</h2><p className="tracker-subtitle">Manage your profile, saved opportunities and application progress.</p></div><button className="secondary-button" onClick={()=>void load()}>Refresh</button></div>
+  {error&&<p className="feedback error" role="alert">{error}</p>}{notice&&<p className="feedback success" role="status">{notice}</p>}
+  <div className="summary-grid"><article className="summary-card"><span>Saved jobs</span><strong>{summary?.totalJobs??0}</strong></article><article className="summary-card"><span>Applications</span><strong>{summary?.totalApplications??0}</strong></article><article className="summary-card"><span>Interviews</span><strong>{summary?.applicationsByStatus?.INTERVIEW??0}</strong></article></div>
+  <div className="tracker-grid">
+   <section className="tracker-card"><h3>Career profile</h3><form onSubmit={e=>{e.preventDefault();void run(()=>api('/api/profile','PUT',{...profile,experienceYears:profile.experienceYears?Number(profile.experienceYears):null}),'Profile saved.');}}>
+    <label>Display name<input maxLength={160} value={profile.displayName} onChange={e=>setProfile({...profile,displayName:e.target.value})}/></label>
+    <label>Professional summary<textarea rows={4} maxLength={10000} value={profile.professionalSummary} onChange={e=>setProfile({...profile,professionalSummary:e.target.value})}/></label>
+    <label>Years of experience<input type="number" min="0" max="80" step="0.5" value={profile.experienceYears} onChange={e=>setProfile({...profile,experienceYears:e.target.value})}/></label><button disabled={busy}>Save profile</button></form>
+    <h3 className="subheading">Skills</h3><form className="inline-form" onSubmit={e=>{e.preventDefault();void run(()=>api('/api/profile/skills','POST',{skillName,proficiency:null,yearsExperience:null}),'Skill added.').then(()=>setSkillName(''));}}><input aria-label="Skill name" placeholder="e.g. Java" required maxLength={120} value={skillName} onChange={e=>setSkillName(e.target.value)}/><button disabled={busy}>Add</button></form>
+    <ul className="skill-list">{skills.map(s=><li key={s.id}>{s.skillName}<button className="text-button" onClick={()=>void run(()=>api(`/api/profile/skills/${s.id}`,'DELETE'),'Skill removed.')}>Remove</button></li>)}</ul>
+   </section>
+   <section className="tracker-card"><h3>Save a job</h3><form onSubmit={e=>{e.preventDefault();void run(()=>api('/api/jobs','POST',{title,companyName:company,location:location||null}),'Job saved.').then(()=>{setTitle('');setCompany('');setLocation('');});}}>
+    <label>Job title<input required maxLength={240} value={title} onChange={e=>setTitle(e.target.value)}/></label><label>Company<input required maxLength={240} value={company} onChange={e=>setCompany(e.target.value)}/></label><label>Location<input maxLength={240} value={location} onChange={e=>setLocation(e.target.value)}/></label><button disabled={busy}>Save job</button></form>
+    <h3 className="subheading">Saved jobs</h3><ul className="record-list">{jobs.map(j=><li key={j.id}><div><strong>{j.title}</strong><span>{j.companyName}{j.location?` · ${j.location}`:''}</span></div><button className="text-button" onClick={()=>setSelectedJob(j.id)}>Track</button></li>)}</ul>
+    {jobs.length>0&&<form className="inline-form application-create" onSubmit={e=>{e.preventDefault();void run(()=>api('/api/applications','POST',{jobId:selectedJob,status:'SAVED'}),'Application tracking started.');}}><select aria-label="Select saved job" value={selectedJob} onChange={e=>setSelectedJob(e.target.value)}><option value="">Choose a job…</option>{jobs.map(j=><option key={j.id} value={j.id}>{j.title} — {j.companyName}</option>)}</select><button disabled={busy||!selectedJob}>Track application</button></form>}
+   </section>
+  </div>
+  <section className="tracker-card application-panel"><h3>Applications</h3>{apps.length===0?<p className="muted">No applications tracked yet. Save a job and start tracking it above.</p>:<div className="application-list">{apps.map(a=><article className="application-row" key={a.id}><div><strong>{a.jobTitle}</strong><span>{a.companyName}</span>{a.nextActionDate&&<small>Next action: {a.nextActionDate}</small>}</div><label className="status-select">Status<select value={a.status} onChange={e=>void run(()=>api(`/api/applications/${a.id}`,'PUT',{jobId:a.jobId,status:e.target.value,appliedDate:a.appliedDate,notes:a.notes,nextActionDate:a.nextActionDate,interviewAt:a.interviewAt,interviewTimezone:a.interviewTimezone}),'Application status updated.')}>{statuses.map(s=><option key={s}>{s}</option>)}</select></label></article>)}</div>}</section>
+  <section className="tracker-card application-panel"><h3>Upcoming interviews</h3>{summary?.upcomingInterviews.length?summary.upcomingInterviews.map(i=><p key={i.applicationId}><strong>{i.jobTitle}</strong> — {i.companyName} · {new Date(i.interviewAt).toLocaleString()}</p>):<p className="muted">No upcoming interviews recorded.</p>}</section>
+ </section>;
+}
