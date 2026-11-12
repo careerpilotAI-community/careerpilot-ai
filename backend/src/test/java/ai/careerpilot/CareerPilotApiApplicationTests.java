@@ -98,6 +98,40 @@ class CareerPilotApiApplicationTests {
             .andExpect(status().isUnauthorized());
     }
 
+
+    @Test
+    void unsafeRequestWithoutCsrfTokenIsRejected() throws Exception {
+        mockMvc.perform(post("/api/auth/logout"))
+            .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void logoutInvalidatesTheAuthenticatedSession() throws Exception {
+        mockMvc.perform(post("/api/auth/register")
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {"email":"logout.user@example.com","password":"a-very-long-test-password"}
+                    """))
+            .andExpect(status().isAccepted());
+
+        var login = mockMvc.perform(post("/api/auth/login")
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {"email":"logout.user@example.com","password":"a-very-long-test-password"}
+                    """))
+            .andExpect(status().isOk())
+            .andReturn();
+        var sessionCookie = login.getResponse().getCookie("SESSION");
+        assertThat(sessionCookie).isNotNull();
+
+        mockMvc.perform(post("/api/auth/logout").cookie(sessionCookie).with(csrf()))
+            .andExpect(status().isNoContent());
+        mockMvc.perform(get("/api/auth/me").cookie(sessionCookie))
+            .andExpect(status().isUnauthorized());
+    }
+
     @Test
     void repositoriesKeepJobQueriesOwnerScoped() {
         UserEntity owner = userRepository.saveAndFlush(
