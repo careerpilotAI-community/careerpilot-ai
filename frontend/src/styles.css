@@ -87,8 +87,224 @@ h1 span {
 }
 
 /* Branch 28 career tracker workspace */
-.workspace-shell{min-height:100vh;padding:24px clamp(16px,4vw,64px) 64px;background:radial-gradient(ellipse at 18% 12%,#1d3555 0,transparent 42%),#101827}.workspace-header{max-width:1200px;margin:0 auto 42px;display:flex;align-items:center;justify-content:space-between;gap:16px;border-bottom:1px solid #33465f;padding-bottom:18px}.workspace-header>div{display:flex;align-items:center;gap:16px;color:#b7c3d5;font-size:.9rem}.brand{color:#91baff;font-weight:800;letter-spacing:.16em;text-decoration:none}.tracker-shell{max-width:1200px;margin:0 auto}.tracker-heading{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;margin-bottom:28px}.tracker-heading h2{font-size:clamp(2rem,5vw,3.3rem);letter-spacing:-.04em;margin:8px 0}.tracker-subtitle,.muted{color:#9eacc0}.summary-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin-bottom:20px}.summary-card,.tracker-card{border:1px solid #33465f;border-radius:16px;background:#172438cc;padding:20px}.summary-card span{display:block;color:#9eacc0;font-size:.9rem}.summary-card strong{display:block;font-size:2rem;margin-top:8px}.tracker-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px}.tracker-card h3{margin:0 0 16px;font-size:1.2rem}.tracker-card .subheading{margin-top:28px}.tracker-card form{display:grid;gap:12px}.tracker-card label{display:grid;gap:6px;color:#b7c3d5;font-size:.9rem}.tracker-card input,.tracker-card textarea,.tracker-card select{width:100%;border:1px solid #405572;border-radius:8px;padding:10px 12px;background:#101b2b;color:#e8edf5;font:inherit}.tracker-card button{border:0;border-radius:8px;padding:10px 14px;background:#7eabf4;color:#102039;font-weight:700;cursor:pointer}.tracker-card button:disabled{opacity:.55;cursor:not-allowed}.inline-form{display:flex!important;align-items:center}.inline-form input,.inline-form select{flex:1;min-width:0}.skill-list,.record-list{list-style:none;margin:12px 0 0;padding:0}.skill-list li,.record-list li{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid #2e4058}.record-list li>div,.application-row>div{display:grid;gap:4px}.record-list span,.application-row span,.application-row small{color:#9eacc0;font-size:.88rem}.text-button{background:transparent!important;color:#91baff!important;padding:4px!important}.application-create{margin-top:16px}.application-panel{margin-top:20px}.application-list{display:grid;gap:12px}.application-row{display:flex;justify-content:space-between;align-items:center;gap:20px;padding:12px 0;border-bottom:1px solid #2e4058}.status-select{min-width:150px}.feedback{padding:12px 14px;border-radius:8px}.feedback.error{background:#4b2229;color:#ffd4d9}.feedback.success{background:#173e35;color:#baf3dc}
-@media(max-width:760px){.tracker-grid{grid-template-columns:1fr}.summary-grid{grid-template-columns:1fr}.tracker-heading{align-items:flex-start;flex-direction:column}.workspace-header{align-items:flex-start;flex-direction:column}.workspace-header>div{width:100%;justify-content:space-between}.application-row{align-items:flex-start;flex-direction:column}.status-select{width:100%}}
+.workspace-shell {
+  min-height: 100vh;
+  padding: 24px clamp(16px, 4vw, 64px) 64px;
+  background:
+    radial-gradient(ellipse at 18% 12%, #1d3555 0, transparent 42%), #101827;
+}
+.workspace-header {
+  max-width: 1200px;
+  margin: 0 auto 42px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  border-bottom: 1px solid #33465f;
+  padding-bottom: 18px;
+}
+.workspace-header > div {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  color: #b7c3d5;
+  font-size: 0.9rem;
+}
+.brand {
+  color: #91baff;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-decoration: none;
+}
+.tracker-shell {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+.tracker-heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 28px;
+}
+.tracker-heading h2 {
+  font-size: clamp(2rem, 5vw, 3.3rem);
+  letter-spacing: -0.04em;
+  margin: 8px 0;
+}
+.tracker-subtitle,
+.muted {
+  color: #9eacc0;
+}
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 20px;
+}
+.summary-card,
+.tracker-card {
+  border: 1px solid #33465f;
+  border-radius: 16px;
+  background: #172438cc;
+  padding: 20px;
+}
+.summary-card span {
+  display: block;
+  color: #9eacc0;
+  font-size: 0.9rem;
+}
+.summary-card strong {
+  display: block;
+  font-size: 2rem;
+  margin-top: 8px;
+}
+.tracker-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+}
+.tracker-card h3 {
+  margin: 0 0 16px;
+  font-size: 1.2rem;
+}
+.tracker-card .subheading {
+  margin-top: 28px;
+}
+.tracker-card form {
+  display: grid;
+  gap: 12px;
+}
+.tracker-card label {
+  display: grid;
+  gap: 6px;
+  color: #b7c3d5;
+  font-size: 0.9rem;
+}
+.tracker-card input,
+.tracker-card textarea,
+.tracker-card select {
+  width: 100%;
+  border: 1px solid #405572;
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: #101b2b;
+  color: #e8edf5;
+  font: inherit;
+}
+.tracker-card button {
+  border: 0;
+  border-radius: 8px;
+  padding: 10px 14px;
+  background: #7eabf4;
+  color: #102039;
+  font-weight: 700;
+  cursor: pointer;
+}
+.tracker-card button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.inline-form {
+  display: flex !important;
+  align-items: center;
+}
+.inline-form input,
+.inline-form select {
+  flex: 1;
+  min-width: 0;
+}
+.skill-list,
+.record-list {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+}
+.skill-list li,
+.record-list li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid #2e4058;
+}
+.record-list li > div,
+.application-row > div {
+  display: grid;
+  gap: 4px;
+}
+.record-list span,
+.application-row span,
+.application-row small {
+  color: #9eacc0;
+  font-size: 0.88rem;
+}
+.text-button {
+  background: transparent !important;
+  color: #91baff !important;
+  padding: 4px !important;
+}
+.application-create {
+  margin-top: 16px;
+}
+.application-panel {
+  margin-top: 20px;
+}
+.application-list {
+  display: grid;
+  gap: 12px;
+}
+.application-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+  padding: 12px 0;
+  border-bottom: 1px solid #2e4058;
+}
+.status-select {
+  min-width: 150px;
+}
+.feedback {
+  padding: 12px 14px;
+  border-radius: 8px;
+}
+.feedback.error {
+  background: #4b2229;
+  color: #ffd4d9;
+}
+.feedback.success {
+  background: #173e35;
+  color: #baf3dc;
+}
+@media (max-width: 760px) {
+  .tracker-grid {
+    grid-template-columns: 1fr;
+  }
+  .summary-grid {
+    grid-template-columns: 1fr;
+  }
+  .tracker-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .workspace-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .workspace-header > div {
+    width: 100%;
+    justify-content: space-between;
+  }
+  .application-row {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .status-select {
+    width: 100%;
+  }
+}
 
 /* Branch 28 career tracker workspace */
 .workspace-shell {
