@@ -78,7 +78,7 @@ class CareerPilotApiApplicationTests {
     void contextLoadsAfterFreshFlywayMigration() {
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT version FROM flyway_schema_history WHERE success = true ORDER BY installed_rank DESC LIMIT 1",
-                String.class)).isEqualTo("2");
+                String.class)).isEqualTo("3");
     }
 
 
