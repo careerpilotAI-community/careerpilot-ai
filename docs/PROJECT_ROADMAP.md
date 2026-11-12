@@ -77,7 +77,7 @@ Detailed requirements, user journeys, feature boundaries, and the conceptual dom
 | 8B — Persistence implementation decision finalization | Reconcile persistence recommendations and implementation decisions | **Completed and merged in PR #32** |
 | 9 — Persistence implementation | PostgreSQL 17, Flyway, Docker Compose, repository integration tests | **Completed and merged in PR #33** |
 | 10 — Identity and session security implementation | Registration, login/logout, JDBC sessions, CSRF/CORS, session expiry and authentication UI | **Completed and merged in PR #34** |
-| 11 — Core tracker | Profile, skills, saved jobs, applications, dashboard and owner isolation | **Branch 28 implementation in progress; CI/review pending** |
+| 11 — Core tracker | Profile, skills, saved jobs, applications, dashboard and owner isolation | **Implemented in open PR #35; backend and frontend CI pass; awaiting review/merge** |
 | 12 — Resume/document management | Secure upload, versioning, storage adapter, scanning, retention and recovery | Future milestone; requires file policies and storage security approval |
 | 13 — Local AI assistance | Ollama integration, job matching and resume suggestions | Future milestone; requires model/hardware baseline, grounding, privacy, safety and quota decisions |
 | 14 — Integrated local MVP validation | End-to-end workflows, recovery, backup/restore and release checks | Future milestone after tracker, resume and AI slices |
@@ -117,7 +117,7 @@ The repository's current implementation is materially beyond the historical Bran
 - **Build baseline:** Branch 23 / PR #30 added deterministic Maven/npm builds, frontend lint/format/test tooling and CI quality gates. PR #30 records a successful permanent CI run; branch protection and required-check enforcement remain unverified.
 - **Persistence:** Branch 26 / PR #33 added PostgreSQL 17.6 Compose support, Flyway V1/V2 migrations, JPA entities/repositories, owner-aware constraints and PostgreSQL Testcontainers coverage.
 - **Identity/security:** Branch 27 / PR #34 added Argon2id password hashing, local-profile registration, server-side JDBC sessions, CSRF, explicit CORS, session rotation and expiry, and authentication UI. Email verification, password recovery, rate limiting and public registration hardening remain out of scope.
-- **Core tracker:** Branch 28 is implementing profile and skills management, owner-scoped job and application workflows, a dashboard summary, React workspace integration and cross-user integration coverage. It is not complete until PR checks and review pass.
+- **Core tracker:** Branch 28 implements profile and skills management, owner-scoped job and application workflows, dashboard summaries, responsive React workspace integration and cross-user integration coverage. PR #35's backend Maven verification and frontend install/lint/format/tests/build passed in CI run `43176760765`; review and merge remain pending.
 - **Not yet implemented:** resume/document storage and versioning, Ollama integration, AI job matching/suggestions, end-to-end recovery/backup validation and release readiness.
 
 The V1 database constraint defines application statuses as `SAVED`, `PREPARING`, `APPLIED`, `INTERVIEWING`, `OFFER`, `REJECTED`, `WITHDRAWN`, and `CLOSED`; application APIs and UI must use this exact vocabulary. The schema currently supports one current application per user/job; re-application history remains deferred.
