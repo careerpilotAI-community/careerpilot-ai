@@ -1,6 +1,6 @@
 # CareerPilot AI — Product Roadmap
 
-**Status:** MVP scope approved; Branch 23 build-quality baseline is implemented and under PR review; product-feature implementation remains gated  
+**Status:** MVP scope approved; Branch 23 build-quality baseline merged in PR #30; Branch 24 reconciles post-merge readiness; product-feature implementation remains gated  
 **Last updated:** 2026-11-12  
 **Scope:** Product direction and delivery phases; capabilities are plans unless explicitly marked complete.
 
@@ -72,7 +72,8 @@ Detailed requirements, user journeys, feature boundaries, and the conceptual dom
 | 5 — Identity and session security readiness | Account lifecycle, server-side sessions, CSRF/CORS, secrets, authorization and security tests | **Merged in PR #27; security design documented** |
 | 6 — MVP implementation readiness | Consolidated delivery slices, verification checklist, quality gates and remaining decisions | **Merged in PR #28; implementation sequence documented** |
 | 7 — Build & quality baseline audit | Verify actual repository manifests, starter code, tests, CI and reproducibility gaps | **Completed in Branch 22 audit; documentation only. No application code changed** |
-| 8 — Build & quality baseline improvements | Deterministic builds, frontend lockfile, Maven Wrapper, required CI checks and test conventions | **Implemented in PR #30; latest automated CI passed. Main branch protection remains unverified; awaiting PR review/merge** |
+| 8 — Build & quality baseline improvements | Deterministic builds, frontend lockfile, Maven Wrapper, CI quality checks and test conventions | **Completed and merged in PR #30 (merge commit `37f0f6d`); successful CI run recorded in PR #30. Branch protection/required-check enforcement remains unverified** |
+| 8A — Post-merge readiness reconciliation | Align roadmap and readiness documents with merged repository state; preserve Branch 22 audit as historical evidence | **Branch 24: documentation-only reconciliation in progress** |
 | 9 — Persistence implementation | PostgreSQL 17, Flyway, Docker Compose, repository integration tests | Not authorized; requires approved readiness gates and explicit implementation approval |
 | 10 — Identity and isolation implementation | Account lifecycle, server-side sessions, CSRF, authorization, cross-user tests | Requires identity/security decisions and explicit implementation approval |
 | 11 — Core tracker | Profile, job records, application status and dashboard | Requires persistence and identity gates |
@@ -112,9 +113,9 @@ Set numeric targets after a baseline exists.
 
 Branch 22 confirms that the current repository is still a starter foundation: the backend has only the application entry point and a context-load test; the frontend is a static starter screen; PostgreSQL, Flyway, Docker Compose, authentication, document storage and AI integration are not yet implemented. The CI workflow builds/verifies the backend and builds the frontend, but frontend dependency installation is not lockfile-deterministic and the repository ruleset/required-check configuration remains unverified.
 
-The Branch 23 build/quality baseline is implemented in PR #30 and its automated CI checks pass. Main branch protection settings remain unverified and must be checked before relying on required-check enforcement. This authorization does not extend to persistence or other product-feature coding. Before persistence coding, resolve the database schema and migration policy, backup/restore expectations, identity/session/CSRF/password controls, authorization tests, document upload/storage/scanning policy, Ollama model requirements, AI grounding and privacy controls, and milestone acceptance criteria.
+The Branch 23 build/quality baseline is merged in PR #30 at `37f0f6d6054e49a81bb928eb14bb9920b1fb23f9`. PR #30 records a successful permanent CI run (`43164048115`) on the latest PR commit, covering backend Maven Wrapper `verify` and frontend `npm ci`, lint, formatting, tests, and production build. The commit-associated workflow-run lookup returned no runs, so the PR's recorded run is retained as evidence rather than independently revalidated here. Main branch protection and required-check enforcement remain unverified; do not assume CI is enforced by branch rules. Branch 22 remains the historical read-only audit of the pre-Branch-23 tree; its findings are not current-state claims where Branch 23 has since closed the gap. Branch 24 reconciles these documents only. This authorization does not extend to persistence or other product-feature coding. Before persistence coding, resolve the database schema and migration policy, backup/restore expectations, identity/session/CSRF/password controls, authorization tests, document upload/storage/scanning policy, Ollama model requirements, AI grounding and privacy controls, and milestone acceptance criteria.
 
-The user explicitly authorized implementation of Branch 23's build/quality baseline only. Any subsequent product-feature implementation branch still requires explicit authorization. Documentation-only approval is not coding authorization.
+Branch 23's build/quality baseline is complete and merged. Branch 24 is documentation-only. Any subsequent product-feature implementation branch, including persistence, still requires explicit authorization. Documentation-only approval is not coding authorization.
 
 ## 9. Change control
 
