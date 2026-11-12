@@ -1,13 +1,38 @@
 # Local Development
 
-CareerPilot AI is in its application-foundation phase. Run the backend and frontend separately during local development.
+CareerPilot AI uses PostgreSQL 17 for structured persistence. Run the database, backend, and frontend as separate local services.
 
 ## Prerequisites
 - Java 21 (JDK)
 - Node.js 22+
 - npm (bundled with Node.js)
+- Docker Engine with the Docker Compose plugin (or a native PostgreSQL 17 installation)
 
-The Maven Wrapper pins Maven 3.9.11 and downloads it automatically on first use; a separate Maven installation is not required. PostgreSQL is selected for the upcoming persistence phase. The current starter does not yet connect to a database.
+The Maven Wrapper pins Maven 3.9.11 and downloads it automatically on first use; a separate Maven installation is not required.
+
+## Start PostgreSQL with Docker Compose
+
+From the repository root:
+
+**Windows (PowerShell):**
+```powershell
+Copy-Item .env.example .env
+# Edit .env and replace change_me_local_only with a private local password.
+docker compose up -d postgres
+docker compose ps
+```
+
+**Linux / macOS / Git Bash:**
+```bash
+cp .env.example .env
+# Edit .env and replace change_me_local_only with a private local password.
+docker compose up -d postgres
+docker compose ps
+```
+
+The database port is bound to 127.0.0.1 by default. The named volume `careerpilot-postgres-data` preserves data across container recreation; it is not a backup. Do not run `docker compose down -v` unless you intentionally want to delete the local database volume.
+
+The Compose service uses the pinned PostgreSQL 17.6 image tag. Update the patch tag deliberately after reviewing PostgreSQL release notes and validating the upgrade.
 
 ## Backend
 
@@ -16,14 +41,26 @@ From the repository root:
 **Windows (PowerShell / Command Prompt):**
 ```powershell
 cd backend
+$env:DATABASE_URL = "jdbc:postgresql://localhost:5432/careerpilot"
+$env:DATABASE_USERNAME = "careerpilot"
+$env:DATABASE_PASSWORD = "<the password from .env>"
+$env:FLYWAY_USERNAME = $env:DATABASE_USERNAME
+$env:FLYWAY_PASSWORD = $env:DATABASE_PASSWORD
 .\mvnw.cmd --batch-mode --no-transfer-progress spring-boot:run
 ```
 
 **Linux / macOS / Git Bash:**
 ```bash
 cd backend
+export DATABASE_URL=jdbc:postgresql://localhost:5432/careerpilot
+export DATABASE_USERNAME=careerpilot
+export DATABASE_PASSWORD='<the password from .env>'
+export FLYWAY_USERNAME="$DATABASE_USERNAME"
+export FLYWAY_PASSWORD="$DATABASE_PASSWORD"
 ./mvnw --batch-mode --no-transfer-progress spring-boot:run
 ```
+
+Flyway applies pending migrations before the application starts. Hibernate validates the mapped entity schema; it does not create or update tables. The first migration creates the identity/profile/job/application foundation.
 
 The API starts at `http://localhost:8080`.
 Health check: `http://localhost:8080/actuator/health`
@@ -32,6 +69,8 @@ Run backend verification and tests with:
 
 - Windows: `.\mvnw.cmd --batch-mode --no-transfer-progress verify`
 - Linux / macOS / Git Bash: `./mvnw --batch-mode --no-transfer-progress verify`
+
+The backend integration tests start a disposable PostgreSQL 17.6 Testcontainers database. Docker must be available when running the test suite.
 
 ## Frontend
 
@@ -58,11 +97,13 @@ Use `npm ci` for clean, lockfile-based installs. When intentionally changing fro
 
 ## Configuration and secrets
 - Do not commit `.env` files, passwords, API keys, tokens, or personal resume data.
+- The committed `.env.example` contains placeholders for local development only. Replace them in your private `.env` file.
+- The Compose bootstrap user is a local-development convenience, not a production least-privilege database-role design. Production/self-hosted deployments must use separate migration and runtime credentials.
 - Keep local secrets outside version control.
 - Backend port can be changed with the `SERVER_PORT` environment variable.
-- The frontend proxy currently targets the local backend at port 8080.
+- Database URL, credentials, and pool size are configurable through `DATABASE_URL`, `DATABASE_USERNAME`, `DATABASE_PASSWORD`, and `DATABASE_POOL_SIZE`.
 
 ## Current scope
-This foundation provides a Spring Boot application entry point, Actuator health endpoint, context-load smoke test, React starter screen, Vite development proxy, Maven Wrapper, deterministic frontend dependency lockfile, and GitHub Actions build/quality validation.
+This foundation provides a Spring Boot API, PostgreSQL 17 persistence schema and repositories for account/profile/job/application foundations, Flyway migrations, local Compose database startup, Actuator health endpoint, PostgreSQL integration tests, React starter screen, Vite development proxy, Maven Wrapper, deterministic frontend dependency lockfile, and GitHub Actions build/quality validation.
 
-Authentication, PostgreSQL persistence, job/profile features, AI provider integration, document storage, and cloud deployment are intentionally deferred to later roadmap phases.
+Registration, login, sessions, CSRF, user-facing profile/job/application workflows, resume storage, AI provider integration, backup automation, and cloud deployment remain later milestones.
