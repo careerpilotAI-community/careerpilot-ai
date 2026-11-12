@@ -216,4 +216,4 @@ This is not hosted-production readiness. Backups/restores, encryption and key ma
 
 The initial hosted deployment must not proceed until the open security and operational items relevant to that deployment are resolved. A local implementation may proceed only under a separately approved Branch 30 implementation scope and must preserve the hosted fail-closed boundary.
 
-**Implementation gate:** Branch 29 is documentation only. It adds no upload controllers, storage SDK dependencies, filesystem adapters, object-store buckets, scanner integration, document parsers, Flyway migrations, or runtime configuration. A separate explicit approval is required for Branch 30 implementation.
+**Implementation record:** Branch 29 remains a documentation-only decision record and introduced no runtime implementation. Branch 30, separately approved, adds the first local filesystem upload/list/download slice described above. Its implementation does not close the outstanding hosted-deployment security and operations gates.
