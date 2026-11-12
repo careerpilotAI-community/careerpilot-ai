@@ -149,10 +149,7 @@ export default function Tracker({ csrf }: { csrf: Csrf }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  async function run(
-    action: () => Promise<unknown>,
-    successMessage: string,
-  ) {
+  async function run(action: () => Promise<unknown>, successMessage: string) {
     setBusy(true);
     setError('');
     setNotice('');
@@ -308,8 +305,7 @@ export default function Tracker({ csrf }: { csrf: Csrf }) {
                   className="text-button"
                   onClick={() =>
                     void run(
-                      () =>
-                        api(`/api/profile/skills/${skill.id}`, 'DELETE'),
+                      () => api(`/api/profile/skills/${skill.id}`, 'DELETE'),
                       'Skill removed.',
                     )
                   }
@@ -418,9 +414,7 @@ export default function Tracker({ csrf }: { csrf: Csrf }) {
                   </option>
                 ))}
               </select>
-              <button disabled={busy || !selectedJob}>
-                Track application
-              </button>
+              <button disabled={busy || !selectedJob}>Track application</button>
             </form>
           )}
         </section>
@@ -450,19 +444,15 @@ export default function Tracker({ csrf }: { csrf: Csrf }) {
                     onChange={(event) =>
                       void run(
                         () =>
-                          api(
-                            `/api/applications/${application.id}`,
-                            'PUT',
-                            {
-                              jobId: application.jobId,
-                              status: event.target.value,
-                              appliedDate: application.appliedDate,
-                              notes: application.notes,
-                              nextActionDate: application.nextActionDate,
-                              interviewAt: application.interviewAt,
-                              interviewTimezone: application.interviewTimezone,
-                            },
-                          ),
+                          api(`/api/applications/${application.id}`, 'PUT', {
+                            jobId: application.jobId,
+                            status: event.target.value,
+                            appliedDate: application.appliedDate,
+                            notes: application.notes,
+                            nextActionDate: application.nextActionDate,
+                            interviewAt: application.interviewAt,
+                            interviewTimezone: application.interviewTimezone,
+                          }),
                         'Application status updated.',
                       )
                     }
