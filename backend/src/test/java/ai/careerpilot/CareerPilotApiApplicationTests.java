@@ -23,8 +23,10 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest(properties = "app.registration.enabled=true")
@@ -181,6 +183,55 @@ class CareerPilotApiApplicationTests {
                 VALUES (?, ?, ?, 'APPLIED')
                 """, UUID.randomUUID(), owner.getId(), job.getId()))
                 .isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    void trackerApisPersistRecordsAndEnforceAuthenticatedOwnership() throws Exception {
+        UserEntity owner = userRepository.saveAndFlush(
+                new UserEntity("tracker-owner-" + UUID.randomUUID() + "@example.com", "test-only-password-hash"));
+        UserEntity other = userRepository.saveAndFlush(
+                new UserEntity("tracker-other-" + UUID.randomUUID() + "@example.com", "test-only-password-hash"));
+
+        mockMvc.perform(put("/api/profile")
+                .with(user(owner.getEmail())).with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {"displayName":"Career User","professionalSummary":"Java backend engineer","experienceYears":4.5}
+                    """))
+            .andExpect(status().isOk());
+
+        mockMvc.perform(post("/api/profile/skills")
+                .with(user(owner.getEmail())).with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {"skillName":"Java","proficiency":"ADVANCED","yearsExperience":4.5}
+                    """))
+            .andExpect(status().isCreated());
+
+        var jobResponse = mockMvc.perform(post("/api/jobs")
+                .with(user(owner.getEmail())).with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {"title":"Senior Java Engineer","companyName":"Example Ltd","location":"Bengaluru"}
+                    """))
+            .andExpect(status().isCreated())
+            .andReturn();
+        UUID jobId = UUID.fromString(com.jayway.jsonpath.JsonPath.read(
+                jobResponse.getResponse().getContentAsString(), "$.id"));
+
+        mockMvc.perform(post("/api/applications")
+                .with(user(owner.getEmail())).with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\\"jobId\\":\\""+jobId+"\\",\\"status\\":\\"APPLIED\\"}"))
+            .andExpect(status().isCreated());
+
+        mockMvc.perform(get("/api/dashboard/summary").with(user(owner.getEmail())))
+            .andExpect(status().isOk())
+            .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.totalJobs").value(1))
+            .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.totalApplications").value(1));
+
+        mockMvc.perform(get("/api/jobs/{id}", jobId).with(user(other.getEmail())))
+            .andExpect(status().isNotFound());
     }
 
     @Test
