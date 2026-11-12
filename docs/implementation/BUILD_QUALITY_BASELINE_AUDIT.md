@@ -147,3 +147,12 @@ This sequence follows the merged Branch 21 delivery plan. It does not convert an
 ## 11. Approval boundary
 
 Branch 22 is a read-only baseline audit and documentation deliverable. It does not authorize implementation or modify application code. Any build/quality changes and all product implementation slices require their own explicit scope and approval.
+
+
+## 12. Historical status after Branch 23 (post-merge note)
+
+This report is intentionally preserved as the Branch 22 historical audit of `main` at `08f303dbdae02eeb3193636ad8b696ca947d251a`. Its observations describe that audited tree, not the post-Branch-23 repository state. Branch 23 merged as PR #30 at `37f0f6d6054e49a81bb928eb14bb9920b1fb23f9` and addressed the build-baseline gaps: committed frontend lockfile with `npm ci`, Maven Wrapper pinned to 3.9.11, frontend lint/format/test tooling, a starter component test, and pull-request CI quality checks. PR #30 records successful validation on permanent CI run [43164048115](https://github.com/careerpilotAI-community/careerpilot-ai/actions/runs/43164048115). The run association lookup for the merge commit returned no workflow runs, so this historical note relies on the explicit CI evidence recorded in PR #30.
+
+The following Branch 22 findings remain useful as historical context but must not be presented as current gaps: missing lockfile, missing Maven Wrapper, missing frontend lint/test scripts, and CI using `npm install`. The following remain unverified or open: branch-protection/ruleset enforcement and required-check configuration; dedicated security/dependency scanning decisions; feature-level backend/frontend tests beyond the starter baseline; and all product capabilities identified as not implemented in the audit. Branch protection was not verified by Branch 22 and remains unverified after Branch 23.
+
+Branch 22 remains an immutable historical audit; do not rewrite its audited ref or imply that it inspected the Branch 23 tree.

@@ -195,4 +195,4 @@ The repository uses reproducible toolchain entry points so local development and
 - **Pull-request checks:** backend Maven `verify`; frontend ESLint, Prettier check, Vitest/React Testing Library tests, and production build.
 - **Test conventions:** JUnit 5 and Spring Boot Test for backend tests, Mockito for isolated unit tests, Vitest and React Testing Library for frontend behavior tests.
 
-Branch 23 / PR #30 is implementing this baseline. These checks should be described as established only after the final pull-request workflow has completed successfully. The baseline does not imply that product features, persistence, authentication, or production-readiness controls are implemented.
+Branch 23 / PR #30 merged this baseline at `37f0f6d6054e49a81bb928eb14bb9920b1fb23f9`. PR #30 records successful permanent CI run `43164048115` on its latest PR commit. Branch-protection and required-check enforcement remain unverified. The baseline does not imply that product features, persistence, authentication, or production-readiness controls are implemented.
