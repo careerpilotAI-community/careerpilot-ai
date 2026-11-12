@@ -1,6 +1,6 @@
 # CareerPilot AI — Product Roadmap
 
-**Status:** PostgreSQL persistence (Branch 26) and identity/session security (Branch 27) merged; Branch 28 core tracker implementation in progress  
+**Status:** PostgreSQL persistence (Branch 26), identity/session security (Branch 27), and core career tracker (Branch 28) merged; Branch 29 resume-management policy documented  
 **Last updated:** 2026-11-12  
 **Scope:** Product direction and delivery phases; capabilities are plans unless explicitly marked complete.
 
@@ -77,8 +77,8 @@ Detailed requirements, user journeys, feature boundaries, and the conceptual dom
 | 8B — Persistence implementation decision finalization | Reconcile persistence recommendations and implementation decisions | **Completed and merged in PR #32** |
 | 9 — Persistence implementation | PostgreSQL 17, Flyway, Docker Compose, repository integration tests | **Completed and merged in PR #33** |
 | 10 — Identity and session security implementation | Registration, login/logout, JDBC sessions, CSRF/CORS, session expiry and authentication UI | **Completed and merged in PR #34** |
-| 11 — Core tracker | Profile, skills, saved jobs, applications, dashboard and owner isolation | **Implemented in open PR #35; backend and frontend CI pass; awaiting review/merge** |
-| 12 — Resume/document management | Secure upload, versioning, storage adapter, scanning, retention and recovery | Future milestone; requires file policies and storage security approval |
+| 11 — Core tracker | Profile, skills, saved jobs, applications, dashboard and owner isolation | **Completed and merged in PR #35; backend and frontend CI passed** |
+| 12 — Resume/document management | Secure upload, versioning, storage adapter, scanning, retention and recovery | **Branch 29 policy decisions documented; implementation remains gated by unresolved operational policies and separate Branch 30 approval** |
 | 13 — Local AI assistance | Ollama integration, job matching and resume suggestions | Future milestone; requires model/hardware baseline, grounding, privacy, safety and quota decisions |
 | 14 — Integrated local MVP validation | End-to-end workflows, recovery, backup/restore and release checks | Future milestone after tracker, resume and AI slices |
 | 15 — Later deployment modes | Self-hosted and cloud deployment guides/validation | Separate operational, security, privacy and cost review |
@@ -117,8 +117,9 @@ The repository's current implementation is materially beyond the historical Bran
 - **Build baseline:** Branch 23 / PR #30 added deterministic Maven/npm builds, frontend lint/format/test tooling and CI quality gates. PR #30 records a successful permanent CI run; branch protection and required-check enforcement remain unverified.
 - **Persistence:** Branch 26 / PR #33 added PostgreSQL 17.6 Compose support, Flyway V1/V2 migrations, JPA entities/repositories, owner-aware constraints and PostgreSQL Testcontainers coverage.
 - **Identity/security:** Branch 27 / PR #34 added Argon2id password hashing, local-profile registration, server-side JDBC sessions, CSRF, explicit CORS, session rotation and expiry, and authentication UI. Email verification, password recovery, rate limiting and public registration hardening remain out of scope.
-- **Core tracker:** Branch 28 implements profile and skills management, owner-scoped job and application workflows, dashboard summaries, responsive React workspace integration and cross-user integration coverage. PR #35's backend Maven verification and frontend install/lint/format/tests/build passed in CI run `43176893963`; review and merge remain pending.
-- **Not yet implemented:** resume/document storage and versioning, Ollama integration, AI job matching/suggestions, end-to-end recovery/backup validation and release readiness.
+- **Core tracker:** Branch 28 / PR #35 is merged. It implements profile and skills management, owner-scoped job and application workflows, dashboard summaries, responsive React workspace integration and cross-user integration coverage. Backend Maven verification and frontend install/lint/format/tests/build passed in CI run `43177048994`.
+- **Resume management:** Branch 29 approved PDF/DOCX-only uploads, a 10 MiB per-file ceiling, private local filesystem storage, opaque IDs, metadata-only PostgreSQL records, backend streaming, immutable originals/tailored versions, and hosted fail-closed scanning. Branch 29 is documentation only; upload/storage code is not implemented.
+- **Not yet implemented:** resume/document upload and storage, Ollama integration, AI job matching/suggestions, end-to-end recovery/backup validation and release readiness.
 
 The V1 database constraint defines application statuses as `SAVED`, `PREPARING`, `APPLIED`, `INTERVIEWING`, `OFFER`, `REJECTED`, `WITHDRAWN`, and `CLOSED`; application APIs and UI must use this exact vocabulary. The schema currently supports one current application per user/job; re-application history remains deferred.
 
