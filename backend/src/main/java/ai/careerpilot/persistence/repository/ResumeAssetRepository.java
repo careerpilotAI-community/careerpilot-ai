@@ -9,5 +9,4 @@ import java.util.UUID;
 public interface ResumeAssetRepository extends JpaRepository<ResumeAssetEntity, UUID> {
     List<ResumeAssetEntity> findAllByUserIdOrderByCreatedAtDesc(UUID userId);
     Optional<ResumeAssetEntity> findByIdAndUserId(UUID id, UUID userId);
-    long sumSizeBytesByUserId(UUID userId);
 }
