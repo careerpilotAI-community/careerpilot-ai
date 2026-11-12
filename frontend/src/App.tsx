@@ -48,7 +48,7 @@ function App() {
       const result = await response.json().catch(() => ({})) as { email?: string; message?: string };
       if (!response.ok) throw new Error(result.message ?? 'Authentication failed.');
       if (registerMode) {
-        setMessage('Account created. Sign in with your new credentials.');
+        setMessage(result.message ?? 'If registration is available, your account can now be used.');
         setRegisterMode(false);
         setPassword('');
       } else {
