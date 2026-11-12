@@ -9,7 +9,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.mock.web.MockHttpSession;
 import org.springframework.http.MediaType;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -86,11 +85,10 @@ class CareerPilotApiApplicationTests {
             .andExpect(status().isOk())
             .andReturn();
 
-        MockHttpSession session = (MockHttpSession) login.getRequest().getSession(false);
-        assertThat(session).isNotNull();
-        assertThat(session.getAttribute("AUTHENTICATED_AT")).isInstanceOf(Long.class);
+        var sessionCookie = login.getResponse().getCookie("SESSION");
+        assertThat(sessionCookie).isNotNull();
 
-        mockMvc.perform(get("/api/auth/me").session(session))
+        mockMvc.perform(get("/api/auth/me").cookie(sessionCookie))
             .andExpect(status().isOk());
     }
 
