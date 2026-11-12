@@ -1,7 +1,11 @@
 import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
+import Tracker from './Tracker';
 
-type CsrfState = { headerName: string; token: string };
+type CsrfState = {
+  headerName: string;
+  token: string;
+};
 
 function App() {
   const [csrf, setCsrf] = useState<CsrfState | null>(null);
@@ -13,7 +17,9 @@ function App() {
   const [busy, setBusy] = useState(false);
 
   async function refreshCsrf() {
-    const response = await fetch('/api/auth/csrf', { credentials: 'include' });
+    const response = await fetch('/api/auth/csrf', {
+      credentials: 'include',
+    });
     if (!response.ok) {
       throw new Error('Unable to initialize secure session.');
     }
@@ -42,8 +48,10 @@ function App() {
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!csrf) return;
+
     setBusy(true);
     setMessage('');
+
     try {
       const response = await fetch(
         registerMode ? '/api/auth/register' : '/api/auth/login',
@@ -61,9 +69,11 @@ function App() {
         email?: string;
         message?: string;
       };
+
       if (!response.ok) {
         throw new Error(result.message ?? 'Authentication failed.');
       }
+
       if (registerMode) {
         setMessage(
           result.message ??
@@ -89,6 +99,7 @@ function App() {
 
   async function logout() {
     if (!csrf) return;
+
     setBusy(true);
     try {
       await fetch('/api/auth/logout', {
@@ -107,32 +118,38 @@ function App() {
   }
 
   return (
-    <main className="page-shell">
-      <section className="hero" aria-labelledby="page-title">
-        <p className="eyebrow">CAREERPILOT AI</p>
-        <h1 id="page-title">
-          Your career journey, <span>with a co-pilot.</span>
-        </h1>
-        <p className="intro">
-          A private workspace for organizing opportunities, preparing
-          applications, and building interview confidence — with you in control.
-        </p>
-        {authenticatedEmail ? (
-          <div className="status-card">
-            <span className="status-dot" aria-hidden="true" />
+    <main className={authenticatedEmail ? 'workspace-shell' : 'page-shell'}>
+      {authenticatedEmail && csrf ? (
+        <>
+          <header className="workspace-header">
+            <a className="brand" href="/">
+              CAREERPILOT AI
+            </a>
             <div>
-              <strong>Signed in as {authenticatedEmail}</strong>
-              <p>Your account session is protected by the backend.</p>
+              <span>Signed in as {authenticatedEmail}</span>
               <button
                 type="button"
+                className="secondary-button"
                 onClick={() => void logout()}
                 disabled={busy}
               >
                 Sign out
               </button>
             </div>
-          </div>
-        ) : (
+          </header>
+          <Tracker csrf={csrf} />
+        </>
+      ) : (
+        <section className="hero" aria-labelledby="page-title">
+          <p className="eyebrow">CAREERPILOT AI</p>
+          <h1 id="page-title">
+            Your career journey, <span>with a co-pilot.</span>
+          </h1>
+          <p className="intro">
+            A private workspace for organizing opportunities, preparing
+            applications, and building interview confidence — with you in
+            control.
+          </p>
           <form
             className="status-card auth-form"
             onSubmit={(event) => void submit(event)}
@@ -187,16 +204,16 @@ function App() {
               </button>
             </div>
           </form>
-        )}
-        {message && (
-          <p role="status" className="footnote">
-            {message}
+          {message && (
+            <p role="status" className="footnote">
+              {message}
+            </p>
+          )}
+          <p className="footnote">
+            AI suggestions will always be yours to review and approve.
           </p>
-        )}
-        <p className="footnote">
-          AI suggestions will always be yours to review and approve.
-        </p>
-      </section>
+        </section>
+      )}
     </main>
   );
 }
