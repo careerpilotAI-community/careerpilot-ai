@@ -9,12 +9,22 @@ type Job = {
   id: string;
   title: string;
   companyName: string;
+  companyWebsite: string | null;
   location: string | null;
+  employmentType: string | null;
+  workMode: string | null;
+  description: string | null;
+  sourceUrl: string | null;
+  sourceName: string | null;
+  postedAt: string | null;
+  closingAt: string | null;
 };
 
 type Skill = {
   id: string;
   skillName: string;
+  proficiency: string | null;
+  yearsExperience: number | null;
 };
 
 type AppRecord = {
@@ -70,10 +80,24 @@ export default function Tracker({ csrf }: { csrf: Csrf }) {
   const [apps, setApps] = useState<AppRecord[]>([]);
   const [summary, setSummary] = useState<Summary | null>(null);
   const [skillName, setSkillName] = useState('');
+  const [editingSkillId, setEditingSkillId] = useState('');
+  const [editingSkillName, setEditingSkillName] = useState('');
   const [title, setTitle] = useState('');
   const [company, setCompany] = useState('');
   const [location, setLocation] = useState('');
   const [selectedJob, setSelectedJob] = useState('');
+  const [editingJobId, setEditingJobId] = useState('');
+  const [editingJobTitle, setEditingJobTitle] = useState('');
+  const [editingCompany, setEditingCompany] = useState('');
+  const [editingLocation, setEditingLocation] = useState('');
+  const [editingApplicationId, setEditingApplicationId] = useState('');
+  const [applicationForm, setApplicationForm] = useState({
+    appliedDate: '',
+    notes: '',
+    nextActionDate: '',
+    interviewAt: '',
+    interviewTimezone: '',
+  });
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [busy, setBusy] = useState(false);
@@ -300,18 +324,68 @@ export default function Tracker({ csrf }: { csrf: Csrf }) {
           <ul className="skill-list">
             {skills.map((skill) => (
               <li key={skill.id}>
-                {skill.skillName}
-                <button
-                  className="text-button"
-                  onClick={() =>
-                    void run(
-                      () => api(`/api/profile/skills/${skill.id}`, 'DELETE'),
-                      'Skill removed.',
-                    )
-                  }
-                >
-                  Remove
-                </button>
+                {editingSkillId === skill.id ? (
+                  <>
+                    <input
+                      aria-label={`Edit ${skill.skillName}`}
+                      value={editingSkillName}
+                      onChange={(event) =>
+                        setEditingSkillName(event.target.value)
+                      }
+                    />
+                    <div className="record-actions">
+                      <button
+                        disabled={busy || !editingSkillName.trim()}
+                        onClick={() =>
+                          void run(
+                            () =>
+                              api(`/api/profile/skills/${skill.id}`, 'PUT', {
+                                skillName: editingSkillName,
+                                proficiency: skill.proficiency,
+                                yearsExperience: skill.yearsExperience,
+                              }),
+                            'Skill updated.',
+                          ).then(() => setEditingSkillId(''))
+                        }
+                      >
+                        Save
+                      </button>
+                      <button
+                        className="secondary-button"
+                        onClick={() => setEditingSkillId('')}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <span>{skill.skillName}</span>
+                    <div className="record-actions">
+                      <button
+                        className="text-button"
+                        onClick={() => {
+                          setEditingSkillId(skill.id);
+                          setEditingSkillName(skill.skillName);
+                        }}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        className="text-button"
+                        onClick={() =>
+                          void run(
+                            () =>
+                              api(`/api/profile/skills/${skill.id}`, 'DELETE'),
+                            'Skill removed.',
+                          )
+                        }
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  </>
+                )}
               </li>
             ))}
           </ul>
@@ -370,19 +444,103 @@ export default function Tracker({ csrf }: { csrf: Csrf }) {
           <ul className="record-list">
             {jobs.map((job) => (
               <li key={job.id}>
-                <div>
-                  <strong>{job.title}</strong>
-                  <span>
-                    {job.companyName}
-                    {job.location ? ` · ${job.location}` : ''}
-                  </span>
-                </div>
-                <button
-                  className="text-button"
-                  onClick={() => setSelectedJob(job.id)}
-                >
-                  Track
-                </button>
+                {editingJobId === job.id ? (
+                  <div className="job-edit-fields">
+                    <input
+                      aria-label="Edit job title"
+                      value={editingJobTitle}
+                      onChange={(event) =>
+                        setEditingJobTitle(event.target.value)
+                      }
+                    />
+                    <input
+                      aria-label="Edit company"
+                      value={editingCompany}
+                      onChange={(event) =>
+                        setEditingCompany(event.target.value)
+                      }
+                    />
+                    <input
+                      aria-label="Edit job location"
+                      value={editingLocation}
+                      onChange={(event) =>
+                        setEditingLocation(event.target.value)
+                      }
+                    />
+                    <div className="record-actions">
+                      <button
+                        disabled={busy || !editingJobTitle.trim() || !editingCompany.trim()}
+                        onClick={() =>
+                          void run(
+                            () =>
+                              api(`/api/jobs/${job.id}`, 'PUT', {
+                                title: editingJobTitle,
+                                companyName: editingCompany,
+                                companyWebsite: job.companyWebsite,
+                                location: editingLocation || null,
+                                employmentType: job.employmentType,
+                                workMode: job.workMode,
+                                description: job.description,
+                                sourceUrl: job.sourceUrl,
+                                sourceName: job.sourceName,
+                                postedAt: job.postedAt,
+                                closingAt: job.closingAt,
+                              }),
+                            'Job updated.',
+                          ).then(() => setEditingJobId(''))
+                        }
+                      >
+                        Save
+                      </button>
+                      <button
+                        className="secondary-button"
+                        onClick={() => setEditingJobId('')}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <div>
+                      <strong>{job.title}</strong>
+                      <span>
+                        {job.companyName}
+                        {job.location ? ` · ${job.location}` : ''}
+                      </span>
+                    </div>
+                    <div className="record-actions">
+                      <button
+                        className="text-button"
+                        onClick={() => {
+                          setEditingJobId(job.id);
+                          setEditingJobTitle(job.title);
+                          setEditingCompany(job.companyName);
+                          setEditingLocation(job.location ?? '');
+                        }}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        className="text-button"
+                        onClick={() => setSelectedJob(job.id)}
+                      >
+                        Track
+                      </button>
+                      <button
+                        className="text-button"
+                        onClick={() =>
+                          void run(
+                            () => api(`/api/jobs/${job.id}`, 'DELETE'),
+                            'Job deleted.',
+                          )
+                        }
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </>
+                )}
               </li>
             ))}
           </ul>
@@ -436,6 +594,31 @@ export default function Tracker({ csrf }: { csrf: Csrf }) {
                   {application.nextActionDate && (
                     <small>Next action: {application.nextActionDate}</small>
                   )}
+                  <button
+                    className="text-button"
+                    onClick={() => {
+                      setEditingApplicationId(application.id);
+                      setApplicationForm({
+                        appliedDate: application.appliedDate ?? '',
+                        notes: application.notes ?? '',
+                        nextActionDate: application.nextActionDate ?? '',
+                        interviewAt: application.interviewAt
+                          ? new Date(
+                              new Date(application.interviewAt).getTime() -
+                                new Date(application.interviewAt).getTimezoneOffset() *
+                                  60000,
+                            )
+                              .toISOString()
+                              .slice(0, 16)
+                          : '',
+                        interviewTimezone:
+                          application.interviewTimezone ??
+                          Intl.DateTimeFormat().resolvedOptions().timeZone,
+                      });
+                    }}
+                  >
+                    Edit details
+                  </button>
                 </div>
                 <label className="status-select">
                   Status
@@ -462,6 +645,110 @@ export default function Tracker({ csrf }: { csrf: Csrf }) {
                     ))}
                   </select>
                 </label>
+                {editingApplicationId === application.id && (
+                  <form
+                    className="application-edit-form"
+                    onSubmit={(event) => {
+                      event.preventDefault();
+                      const interviewAt = applicationForm.interviewAt
+                        ? new Date(applicationForm.interviewAt).toISOString()
+                        : null;
+                      void run(
+                        () =>
+                          api(`/api/applications/${application.id}`, 'PUT', {
+                            jobId: application.jobId,
+                            status: application.status,
+                            appliedDate: applicationForm.appliedDate || null,
+                            notes: applicationForm.notes || null,
+                            nextActionDate:
+                              applicationForm.nextActionDate || null,
+                            interviewAt,
+                            interviewTimezone: interviewAt
+                              ? applicationForm.interviewTimezone
+                              : null,
+                          }),
+                        'Application details updated.',
+                      ).then(() => setEditingApplicationId(''));
+                    }}
+                  >
+                    <label>
+                      Applied date
+                      <input
+                        type="date"
+                        value={applicationForm.appliedDate}
+                        onChange={(event) =>
+                          setApplicationForm({
+                            ...applicationForm,
+                            appliedDate: event.target.value,
+                          })
+                        }
+                      />
+                    </label>
+                    <label>
+                      Next action date
+                      <input
+                        type="date"
+                        value={applicationForm.nextActionDate}
+                        onChange={(event) =>
+                          setApplicationForm({
+                            ...applicationForm,
+                            nextActionDate: event.target.value,
+                          })
+                        }
+                      />
+                    </label>
+                    <label>
+                      Interview date and time
+                      <input
+                        type="datetime-local"
+                        value={applicationForm.interviewAt}
+                        onChange={(event) =>
+                          setApplicationForm({
+                            ...applicationForm,
+                            interviewAt: event.target.value,
+                          })
+                        }
+                      />
+                    </label>
+                    <label>
+                      Interview timezone
+                      <input
+                        value={applicationForm.interviewTimezone}
+                        onChange={(event) =>
+                          setApplicationForm({
+                            ...applicationForm,
+                            interviewTimezone: event.target.value,
+                          })
+                        }
+                        maxLength={64}
+                      />
+                    </label>
+                    <label className="notes-field">
+                      Notes
+                      <textarea
+                        rows={3}
+                        maxLength={10000}
+                        value={applicationForm.notes}
+                        onChange={(event) =>
+                          setApplicationForm({
+                            ...applicationForm,
+                            notes: event.target.value,
+                          })
+                        }
+                      />
+                    </label>
+                    <div className="record-actions">
+                      <button disabled={busy}>Save details</button>
+                      <button
+                        type="button"
+                        className="secondary-button"
+                        onClick={() => setEditingApplicationId('')}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </form>
+                )}
               </article>
             ))}
           </div>
