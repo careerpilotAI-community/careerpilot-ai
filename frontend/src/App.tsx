@@ -115,8 +115,7 @@ function App() {
         </h1>
         <p className="intro">
           A private workspace for organizing opportunities, preparing
-          applications, and building interview confidence — with you in
-          control.
+          applications, and building interview confidence — with you in control.
         </p>
         {authenticatedEmail ? (
           <div className="status-card">
