@@ -1,6 +1,6 @@
 # Branch 21 — MVP Implementation Readiness & Delivery Plan
 
-**Status:** Documentation only; implementation remains gated  
+**Status:** Documentation baseline; Branch 23 build/quality slice completed in PR #30; product implementation remains gated  
 **Date:** 2026-11-12  
 **Prerequisites:** Approved MVP (Branch 17), database design and decisions (Branches 18–19), identity/session security design (Branch 20)
 
@@ -31,17 +31,20 @@ Before the first implementation PR:
 - Confirm the existing application foundation from PR #7 and avoid duplicating scaffolding.
 - Confirm exact Spring Boot/Spring Security/Flyway/PostgreSQL versions are mutually compatible.
 - Confirm current Docker Compose service names, ports, health checks and persistent volume conventions.
-- Confirm repository branch protection and required CI checks.
+- Confirm repository branch protection and required CI checks; this remains an outstanding repository-settings verification.
 - Review all merged architecture docs for contradictions; update documentation through a separate PR if found.
 - Establish baseline build/test commands for frontend and backend.
 
 ## 4. Recommended implementation sequence
 
-### Slice 0 — Build and quality baseline
-- Verify clean checkout builds reproducibly.
-- Define formatting/lint/test commands and CI checks.
-- Add no feature behavior in this slice.
-- Exit: frontend/backend build and tests run locally and in CI.
+### Slice 0 — Build and quality baseline — completed in Branch 23 / PR #30
+- Maven Wrapper pinned to Maven 3.9.11; backend CI runs wrapper `verify`.
+- Frontend lockfile committed; CI uses deterministic `npm ci`.
+- Frontend ESLint, Prettier check, Vitest/jsdom and React Testing Library baseline added.
+- Pull-request CI runs backend verification and frontend install, lint, formatting, tests and production build.
+- PR #30 records successful permanent CI run `43164048115` on its latest PR commit.
+- No product-feature behavior was added. Main branch protection and required-check enforcement remain unverified.
+- Exit: build/quality baseline merged in PR #30 at `37f0f6d6054e49a81bb928eb14bb9920b1fb23f9`.
 
 ### Slice 1 — Database and persistence foundation
 - Add PostgreSQL 17 local service only if not already present.
