@@ -77,14 +77,18 @@ export default function ResumeManager({ csrf }: { csrf: Csrf }) {
         <span className="resume-quota">10 MiB per file · 100 MiB per account</span>
       </div>
       <form className="resume-upload" onSubmit={(event) => void upload(event)}>
-        <label htmlFor="resume-kind">Document type</label>
-        <select id="resume-kind" value={kind} onChange={(event) => setKind(event.target.value as 'ORIGINAL' | 'TAILORED')}>
-          <option value="ORIGINAL">Original resume</option>
-          <option value="TAILORED">Tailored resume</option>
-        </select>
-        <label htmlFor="resume-file">Choose PDF or DOCX</label>
-        <input id="resume-file" type="file" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-          onChange={(event) => setFile(event.target.files?.[0] ?? null)} required />
+        <label htmlFor="resume-kind">
+          Document type
+          <select id="resume-kind" value={kind} onChange={(event) => setKind(event.target.value as 'ORIGINAL' | 'TAILORED')}>
+            <option value="ORIGINAL">Original resume</option>
+            <option value="TAILORED">Tailored resume</option>
+          </select>
+        </label>
+        <label htmlFor="resume-file">
+          Choose PDF or DOCX
+          <input id="resume-file" type="file" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            onChange={(event) => setFile(event.target.files?.[0] ?? null)} required />
+        </label>
         <button disabled={busy || !file}>{busy ? 'Please wait…' : 'Upload securely'}</button>
       </form>
       {message && <p className="feedback" role="status">{message}</p>}
