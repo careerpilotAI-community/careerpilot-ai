@@ -32,9 +32,7 @@ describe('App', () => {
       }),
     ).toBeInTheDocument();
 
-    expect(
-      screen.getByText(/sign in to your workspace/i),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/sign in to your workspace/i)).toBeInTheDocument();
 
     await waitFor(() => {
       expect(screen.getByRole('button', { name: 'Sign in' })).toBeEnabled();
