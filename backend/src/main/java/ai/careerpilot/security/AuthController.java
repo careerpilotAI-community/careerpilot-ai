@@ -3,7 +3,7 @@ package ai.careerpilot.security;
 import ai.careerpilot.persistence.entity.UserEntity;
 import ai.careerpilot.persistence.repository.UserRepository;
 import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpSession;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
@@ -17,10 +17,10 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
 import org.springframework.security.web.context.SecurityContextRepository;
 import org.springframework.security.web.csrf.CsrfToken;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Locale;
@@ -68,19 +68,21 @@ public class AuthController {
 
     @PostMapping("/login")
     public ResponseEntity<?> login(@Valid @RequestBody LoginRequest request,
-                                   HttpServletRequest servletRequest) {
+                                   HttpServletRequest servletRequest,
+                                   HttpServletResponse servletResponse) {
         try {
             Authentication authentication = authenticationManager.authenticate(
                 UsernamePasswordAuthenticationToken.unauthenticated(normalize(request.email()), request.password()));
-            HttpSession session = servletRequest.getSession(true);
-            session.setAttribute("AUTHENTICATED_AT", System.currentTimeMillis());
+            if (servletRequest.getSession(false) != null) {
+                servletRequest.changeSessionId();
+            } else {
+                servletRequest.getSession(true);
+            }
+            servletRequest.getSession().setAttribute("AUTHENTICATED_AT", System.currentTimeMillis());
             SecurityContext context = SecurityContextHolder.createEmptyContext();
             context.setAuthentication(authentication);
             SecurityContextHolder.setContext(context);
-            contextRepository.saveContext(context, servletRequest,
-                org.springframework.web.context.request.RequestContextHolder
-                    .getRequestAttributes() instanceof org.springframework.web.context.request.ServletRequestAttributes attrs
-                    ? attrs.getResponse() : null);
+            contextRepository.saveContext(context, servletRequest, servletResponse);
             return ResponseEntity.ok(Map.of("email", authentication.getName()));
         } catch (BadCredentialsException ex) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
