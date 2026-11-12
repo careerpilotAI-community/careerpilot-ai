@@ -7,6 +7,10 @@ import ai.careerpilot.persistence.repository.UserRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.mock.web.MockHttpSession;
+import org.springframework.http.MediaType;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.DynamicPropertyRegistry;
@@ -19,8 +23,13 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@SpringBootTest
+@SpringBootTest(properties = "app.registration.enabled=true")
+@AutoConfigureMockMvc
 @Testcontainers
 class CareerPilotApiApplicationTests {
     @Container
@@ -47,11 +56,48 @@ class CareerPilotApiApplicationTests {
     @Autowired
     private JdbcTemplate jdbcTemplate;
 
+    @Autowired
+    private MockMvc mockMvc;
+
     @Test
     void contextLoadsAfterFreshFlywayMigration() {
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT version FROM flyway_schema_history WHERE success = true ORDER BY installed_rank DESC LIMIT 1",
-                String.class)).isEqualTo("1");
+                String.class)).isEqualTo("2");
+    }
+
+
+    @Test
+    void registrationAndLoginCreateAnAuthenticatedServerSession() throws Exception {
+        mockMvc.perform(post("/api/auth/register")
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {"email":"new.user@example.com","password":"a-very-long-test-password"}
+                    """))
+            .andExpect(status().isAccepted());
+
+        var login = mockMvc.perform(post("/api/auth/login")
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {"email":"NEW.USER@example.com","password":"a-very-long-test-password"}
+                    """))
+            .andExpect(status().isOk())
+            .andReturn();
+
+        MockHttpSession session = (MockHttpSession) login.getRequest().getSession(false);
+        assertThat(session).isNotNull();
+        assertThat(session.getAttribute("AUTHENTICATED_AT")).isInstanceOf(Long.class);
+
+        mockMvc.perform(get("/api/auth/me").session(session))
+            .andExpect(status().isOk());
+    }
+
+    @Test
+    void protectedEndpointRejectsAnonymousRequest() throws Exception {
+        mockMvc.perform(get("/api/auth/me"))
+            .andExpect(status().isUnauthorized());
     }
 
     @Test
