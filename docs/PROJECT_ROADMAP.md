@@ -148,3 +148,10 @@ Branch 31 is a documentation-only design milestone. It defines immutable asset l
 ## 11. Change control
 
 Record material scope or architecture changes in pull requests, explain the reason, and update this roadmap and affected specialist documents. Keep approved decisions distinct from recommendations and unresolved proposals.
+
+
+## 14. Branch 32 — resume retention, deletion, and security policy
+
+Branch 32 is a documentation-only policy milestone. See [Resume Retention, Deletion & Security Policy](architecture/storage/RESUME_RETENTION_DELETION_SECURITY_POLICY.md). It records recommended defaults and explicitly unresolved owner decisions for active/rejected asset retention, user and account deletion, backup expiry/deletion propagation, Windows volume encryption, key recovery, and implementation acceptance criteria.
+
+No retention/deletion behavior, account deletion, backup automation, encryption, key management, or runtime controls are implemented by this milestone. Proposed durations and defaults are not approved policy until the project owner confirms them. The real-resume local readiness gate from Branch 31 remains closed; hosted/public deployment remains not ready.
