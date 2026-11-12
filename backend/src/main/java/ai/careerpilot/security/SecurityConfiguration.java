@@ -52,6 +52,8 @@ public class SecurityConfiguration {
                 .anyRequest().authenticated())
             .formLogin(form -> form.disable())
             .httpBasic(basic -> basic.disable())
+            .exceptionHandling(errors -> errors.authenticationEntryPoint(
+                (request, response, exception) -> response.sendError(401)))
             .logout(logout -> logout
                 .logoutUrl("/api/auth/logout")
                 .logoutSuccessHandler((request, response, authentication) -> response.setStatus(204)))
