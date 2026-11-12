@@ -142,3 +142,19 @@ Before the first implementation PR:
 - [ ] Receive explicit authorization to start implementation.
 
 **Gate:** This branch is planning/documentation only. Merge does not authorize implementation. Begin only the specific slice the user explicitly approves.
+
+
+## 9. Verified implementation reconciliation — Branch 28
+
+This addendum supersedes earlier statements in this planning document that describe persistence and identity/security as future implementation gates. Those sections remain historical planning records.
+
+| Slice | Current repository state |
+|---|---|
+| Build and quality baseline | Branch 23 / PR #30 merged; successful CI run is recorded in that PR. |
+| PostgreSQL persistence | Branch 26 / PR #33 merged: PostgreSQL 17.6 Compose service, Flyway migrations, JPA entities/repositories, owner-aware constraints and Testcontainers tests. |
+| Identity and session security | Branch 27 / PR #34 merged: Argon2id, local-profile registration, JDBC-backed sessions, CSRF, CORS, session rotation/expiry and sign-in UI. |
+| Core tracker | Branch 28 implementation in progress: profile/skills, saved jobs, application status tracking, dashboard summary, owner-scoped API operations, React workspace and integration tests. |
+
+Branch 28 must use the existing V1 schema without rewriting applied migrations. Its application status vocabulary must match the database constraint exactly: SAVED, PREPARING, APPLIED, INTERVIEWING, OFFER, REJECTED, WITHDRAWN and CLOSED. One current application per user/job remains the MVP model; re-application history is deferred.
+
+The tracker implementation is not considered complete until backend Maven verification, frontend typecheck/lint/format/tests/build and PR CI have been reviewed. The repository connection has not independently verified branch protection or required-check enforcement. Resume/document management, Ollama integration, AI assistance, backup/restore validation and integrated local MVP release readiness remain future slices.
