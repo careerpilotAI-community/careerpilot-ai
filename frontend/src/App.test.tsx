@@ -1,9 +1,29 @@
-import { render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { render, screen, waitFor } from '@testing-library/react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import App from './App';
 
 describe('App', () => {
-  it('renders the CareerPilot AI welcome screen', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('renders the CareerPilot AI sign-in screen', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation(async (url: string) => {
+        if (url === '/api/auth/csrf') {
+          return {
+            ok: true,
+            json: async () => ({
+              headerName: 'X-XSRF-TOKEN',
+              token: 'test-token',
+            }),
+          };
+        }
+        return { ok: false };
+      }),
+    );
+
     render(<App />);
 
     expect(
@@ -13,7 +33,11 @@ describe('App', () => {
     ).toBeInTheDocument();
 
     expect(
-      screen.getByText(/application foundation is ready/i),
+      screen.getByText(/sign in to your workspace/i),
     ).toBeInTheDocument();
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Sign in' })).toBeEnabled();
+    });
   });
 });
