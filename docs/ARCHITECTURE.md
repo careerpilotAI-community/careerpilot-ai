@@ -184,3 +184,15 @@ The deployment, storage, AI strategy, multi-user direction, PostgreSQL 17 baseli
 9. Registration policy, verification delivery, password-hashing parameters, login abuse controls, session repository/timeouts, CSRF/CORS/proxy settings, MFA scope, role provisioning, account export/deletion, and security operations as detailed in [Identity and Security Architecture](architecture/security/IDENTITY_SECURITY_ARCHITECTURE.md).\n10. The first deployment target used for end-to-end validation.
 
 **Implementation gate:** Do not begin the next application-code milestone until this document and its remaining open decisions have been reviewed. Approval of the documented authentication direction does not by itself authorize implementation or resolve the operational details above.
+
+
+## 10. Build and quality baseline
+
+The repository uses reproducible toolchain entry points so local development and pull-request validation run the same commands:
+
+- **Backend:** Java 21 with the Maven Wrapper, pinned to Maven 3.9.11. Developers do not need a separately installed Maven distribution.
+- **Frontend:** Node.js 22 with a committed npm lockfile. Use `npm ci` for clean installs; dependency changes must update and commit both the package manifest and lockfile.
+- **Pull-request checks:** backend Maven `verify`; frontend ESLint, Prettier check, Vitest/React Testing Library tests, and production build.
+- **Test conventions:** JUnit 5 and Spring Boot Test for backend tests, Mockito for isolated unit tests, Vitest and React Testing Library for frontend behavior tests.
+
+Branch 23 / PR #30 is implementing this baseline. These checks should be described as established only after the final pull-request workflow has completed successfully. The baseline does not imply that product features, persistence, authentication, or production-readiness controls are implemented.
