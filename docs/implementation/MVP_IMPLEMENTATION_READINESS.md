@@ -153,7 +153,7 @@ This addendum supersedes earlier statements in this planning document that descr
 | Build and quality baseline | Branch 23 / PR #30 merged; successful CI run is recorded in that PR. |
 | PostgreSQL persistence | Branch 26 / PR #33 merged: PostgreSQL 17.6 Compose service, Flyway migrations, JPA entities/repositories, owner-aware constraints and Testcontainers tests. |
 | Identity and session security | Branch 27 / PR #34 merged: Argon2id, local-profile registration, JDBC-backed sessions, CSRF, CORS, session rotation/expiry and sign-in UI. |
-| Core tracker | Implemented in Branch 28 / open PR #35: profile/skills CRUD, saved-job CRUD, application tracking and detail updates, dashboard summary, owner-scoped API operations, React workspace and integration tests. Backend Maven verification and frontend install/lint/format/tests/build passed in CI run `43176760765`; review/merge pending. |
+| Core tracker | Implemented in Branch 28 / open PR #35: profile/skills CRUD, saved-job CRUD, application tracking and detail updates, dashboard summary, owner-scoped API operations, React workspace and integration tests. Backend Maven verification and frontend install/lint/format/tests/build passed in CI run `43176893963`; review/merge pending. |
 
 Branch 28 must use the existing V1 schema without rewriting applied migrations. Its application status vocabulary must match the database constraint exactly: SAVED, PREPARING, APPLIED, INTERVIEWING, OFFER, REJECTED, WITHDRAWN and CLOSED. One current application per user/job remains the MVP model; re-application history is deferred.
 
