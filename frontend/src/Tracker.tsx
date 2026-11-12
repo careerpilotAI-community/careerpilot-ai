@@ -469,7 +469,11 @@ export default function Tracker({ csrf }: { csrf: Csrf }) {
                     />
                     <div className="record-actions">
                       <button
-                        disabled={busy || !editingJobTitle.trim() || !editingCompany.trim()}
+                        disabled={
+                          busy ||
+                          !editingJobTitle.trim() ||
+                          !editingCompany.trim()
+                        }
                         onClick={() =>
                           void run(
                             () =>
@@ -605,7 +609,9 @@ export default function Tracker({ csrf }: { csrf: Csrf }) {
                         interviewAt: application.interviewAt
                           ? new Date(
                               new Date(application.interviewAt).getTime() -
-                                new Date(application.interviewAt).getTimezoneOffset() *
+                                new Date(
+                                  application.interviewAt,
+                                ).getTimezoneOffset() *
                                   60000,
                             )
                               .toISOString()
