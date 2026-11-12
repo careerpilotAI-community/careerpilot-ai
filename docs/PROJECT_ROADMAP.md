@@ -73,13 +73,14 @@ Detailed requirements, user journeys, feature boundaries, and the conceptual dom
 | 6 — MVP implementation readiness | Consolidated delivery slices, verification checklist, quality gates and remaining decisions | **Merged in PR #28; implementation sequence documented** |
 | 7 — Build & quality baseline audit | Verify actual repository manifests, starter code, tests, CI and reproducibility gaps | **Completed in Branch 22 audit; documentation only. No application code changed** |
 | 8 — Build & quality baseline improvements | Deterministic builds, frontend lockfile, Maven Wrapper, CI quality checks and test conventions | **Completed and merged in PR #30 (merge commit `37f0f6d`); successful CI run recorded in PR #30. Branch protection/required-check enforcement remains unverified** |
-| 8A — Post-merge readiness reconciliation | Align roadmap and readiness documents with merged repository state; preserve Branch 22 audit as historical evidence | **Completed and merged in PR #31 (merge commit `81a0503`)** |\n| 8B — Persistence implementation decision finalization | Reconcile Branch 18/19 recommendations; resolve first-slice scope, ownership, migration, local database and recovery gates | **Branch 25: documentation-only decision proposal in review; recommendations are not approved until explicitly reviewed** |
-| 9 — Persistence implementation | PostgreSQL 17, Flyway, Docker Compose, repository integration tests | Not authorized; requires approved readiness gates and explicit implementation approval |
-| 10 — Identity and isolation implementation | Account lifecycle, server-side sessions, CSRF, authorization, cross-user tests | Requires identity/security decisions and explicit implementation approval |
-| 11 — Core tracker | Profile, job records, application status and dashboard | Requires persistence and identity gates |
-| 12 — Resume/document management | Secure upload, versioning, storage adapter, scanning, retention and recovery | Requires file policies and storage security approval |
-| 13 — Local AI assistance | Ollama integration, job matching and resume suggestions | Requires model/hardware baseline, grounding, privacy, safety and quota decisions |
-| 14 — Local end-to-end validation | Integrated MVP workflows and recovery checks | Requires all preceding slices and explicit release criteria |
+| 8A — Post-merge readiness reconciliation | Align roadmap and readiness documents with merged repository state; preserve Branch 22 as historical evidence | **Completed and merged in PR #31** |
+| 8B — Persistence implementation decision finalization | Reconcile persistence recommendations and implementation decisions | **Completed and merged in PR #32** |
+| 9 — Persistence implementation | PostgreSQL 17, Flyway, Docker Compose, repository integration tests | **Completed and merged in PR #33** |
+| 10 — Identity and session security implementation | Registration, login/logout, JDBC sessions, CSRF/CORS, session expiry and authentication UI | **Completed and merged in PR #34** |
+| 11 — Core tracker | Profile, skills, saved jobs, applications, dashboard and owner isolation | **Branch 28 implementation in progress; CI/review pending** |
+| 12 — Resume/document management | Secure upload, versioning, storage adapter, scanning, retention and recovery | Future milestone; requires file policies and storage security approval |
+| 13 — Local AI assistance | Ollama integration, job matching and resume suggestions | Future milestone; requires model/hardware baseline, grounding, privacy, safety and quota decisions |
+| 14 — Integrated local MVP validation | End-to-end workflows, recovery, backup/restore and release checks | Future milestone after tracker, resume and AI slices |
 | 15 — Later deployment modes | Self-hosted and cloud deployment guides/validation | Separate operational, security, privacy and cost review |
 
 Milestones are planning gates, not delivery-date commitments. No feature is complete merely because its requirements or architecture document is merged.
