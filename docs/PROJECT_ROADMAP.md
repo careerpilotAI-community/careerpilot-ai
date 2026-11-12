@@ -1,6 +1,6 @@
 # CareerPilot AI — Product Roadmap
 
-**Status:** MVP scope approved; Branch 23 build-quality baseline and Branch 24 reconciliation merged; Branch 25 persistence decision review in progress; product-feature implementation remains gated  
+**Status:** PostgreSQL persistence (Branch 26) and identity/session security (Branch 27) merged; Branch 28 core tracker implementation in progress  
 **Last updated:** 2026-11-12  
 **Scope:** Product direction and delivery phases; capabilities are plans unless explicitly marked complete.
 
@@ -109,13 +109,19 @@ Set numeric targets after a baseline exists.
 | Accidental consequential action | No automated submission or outreach in MVP; explicit user confirmation for later actions |
 | Scope expansion | Enforce MVP exclusions and milestone approval gates |
 
-## 8. Current implementation gate
+## 8. Current implementation status
 
-Branch 22 confirms that the current repository is still a starter foundation: the backend has only the application entry point and a context-load test; the frontend is a static starter screen; PostgreSQL, Flyway, Docker Compose, authentication, document storage and AI integration are not yet implemented. The CI workflow builds/verifies the backend and builds the frontend, but frontend dependency installation is not lockfile-deterministic and the repository ruleset/required-check configuration remains unverified.
+The repository's current implementation is materially beyond the historical Branch 22 starter audit:
 
-The Branch 23 build/quality baseline is merged in PR #30 at `37f0f6d6054e49a81bb928eb14bb9920b1fb23f9`. PR #30 records a successful permanent CI run (`43164048115`) on the latest PR commit, covering backend Maven Wrapper `verify` and frontend `npm ci`, lint, formatting, tests, and production build. The commit-associated workflow-run lookup returned no runs, so the PR's recorded run is retained as evidence rather than independently revalidated here. Main branch protection and required-check enforcement remain unverified; do not assume CI is enforced by branch rules. Branch 22 remains the historical read-only audit of the pre-Branch-23 tree; its findings are not current-state claims where Branch 23 has since closed the gap. Branch 24 reconciled these documents only and merged in PR #31 at `81a050348572e9f89af092a3fd3420cf297a8b78`. Branch 25 is a documentation-only persistence decision proposal; its recommendations are not approved merely by being written or merged. This authorization does not extend to persistence or other product-feature coding. Before persistence coding, resolve the database schema and migration policy, backup/restore expectations, identity/session/CSRF/password controls, authorization tests, document upload/storage/scanning policy, Ollama model requirements, AI grounding and privacy controls, and milestone acceptance criteria.
+- **Build baseline:** Branch 23 / PR #30 added deterministic Maven/npm builds, frontend lint/format/test tooling and CI quality gates. PR #30 records a successful permanent CI run; branch protection and required-check enforcement remain unverified.
+- **Persistence:** Branch 26 / PR #33 added PostgreSQL 17.6 Compose support, Flyway V1/V2 migrations, JPA entities/repositories, owner-aware constraints and PostgreSQL Testcontainers coverage.
+- **Identity/security:** Branch 27 / PR #34 added Argon2id password hashing, local-profile registration, server-side JDBC sessions, CSRF, explicit CORS, session rotation and expiry, and authentication UI. Email verification, password recovery, rate limiting and public registration hardening remain out of scope.
+- **Core tracker:** Branch 28 is implementing profile and skills management, owner-scoped job and application workflows, a dashboard summary, React workspace integration and cross-user integration coverage. It is not complete until PR checks and review pass.
+- **Not yet implemented:** resume/document storage and versioning, Ollama integration, AI job matching/suggestions, end-to-end recovery/backup validation and release readiness.
 
-Branch 23's build/quality baseline and Branch 24's reconciliation are complete and merged. Branch 25 is documentation-only. Any subsequent product-feature implementation branch, including persistence, still requires explicit authorization. Documentation-only approval is not coding authorization.
+The V1 database constraint defines application statuses as `SAVED`, `PREPARING`, `APPLIED`, `INTERVIEWING`, `OFFER`, `REJECTED`, `WITHDRAWN`, and `CLOSED`; application APIs and UI must use this exact vocabulary. The schema currently supports one current application per user/job; re-application history remains deferred.
+
+Branch 22 remains a historical read-only audit of the pre-Branch-23 tree. Its findings must not be repeated as current-state claims. PR #30's recorded CI run is historical evidence, not a claim that Branch 28 has passed CI. Branch protection and required-check enforcement remain unverified through the available repository connection.
 
 ## 9. Change control
 
