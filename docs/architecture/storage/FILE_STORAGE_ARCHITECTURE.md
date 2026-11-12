@@ -1,6 +1,6 @@
 # CareerPilot AI — File Storage Architecture
 
-**Status:** Proposed design for review; documentation only. No upload, download, scanner, storage adapter, bucket, or filesystem implementation is created in this milestone.  
+**Status:** Branch 29 decisions approved and documented; documentation only. No upload, download, scanner, storage adapter, bucket, or filesystem implementation is created by this milestone.  
 **Last updated:** 2026-11-12  
 **Related:** [Target Architecture](../../ARCHITECTURE.md) · [Database Architecture](../database/DATABASE_ARCHITECTURE.md) · [System Design Diagrams](../SYSTEM_DESIGN_DIAGRAMS.md)
 
@@ -65,11 +65,13 @@ The contract must define streaming behavior, maximum size, content length handli
 
 ## 4. File acceptance and content safety
 
-### Initial proposed policy (confirm before implementation)
+### Approved initial policy (Branch 29)
+
+The following defaults were explicitly approved for the first implementation slice. They define product/design constraints; they do not authorize upload implementation.
 
 - Allowed user-upload formats for the first release: PDF and DOCX.
 - Legacy DOC, macro-enabled Office formats, executable files, archives, HTML, SVG, scripts, and arbitrary binary uploads are rejected unless a future reviewed use case requires them.
-- Proposed maximum size: 10 MiB per file, configurable by deployment profile. Also enforce request-level limits at reverse proxy, framework multipart parser, and application service layers.
+- Maximum size: 10 MiB per file. Enforce the limit at ingress/reverse proxy, framework multipart parser, application service, and storage adapter boundaries; configuration may tighten the limit but must not silently raise the approved product ceiling.
 - Per-user storage quota and total deployment quota remain open; do not assume unlimited storage.
 - Validate extension, detected file signature, parsed structure, and actual content. Never trust filename extension or Content-Type alone.
 - Reject malformed, encrypted/password-protected, corrupt, polyglot, or unsupported files unless a reviewed workflow explicitly supports them.
@@ -77,7 +79,7 @@ The contract must define streaming behavior, maximum size, content length handli
 - Calculate a cryptographic checksum (SHA-256 proposed) while streaming. A checksum detects corruption; it does not prove a file is safe.
 - Avoid parsing or rendering uploaded documents in a privileged process. Use patched libraries, resource/time limits, and isolated processing where practical.
 
-The 10 MiB limit and PDF/DOCX allowlist are recommended starting defaults, not user-approved final product limits. Confirm real resume and generated-document needs before coding.
+The PDF/DOCX allowlist and 10 MiB per-file ceiling are approved initial product defaults. Any increase or additional format requires a separate review and documented rationale.
 
 ## 5. Malware scanning and quarantine
 
