@@ -1,6 +1,6 @@
 # CareerPilot AI — Product Roadmap
 
-**Status:** Planning baseline; MVP scope approved, implementation remains gated  
+**Status:** MVP scope approved; Branch 23 build-quality implementation is in progress; product-feature implementation remains gated  
 **Last updated:** 2026-11-12  
 **Scope:** Product direction and delivery phases; capabilities are plans unless explicitly marked complete.
 
@@ -72,7 +72,7 @@ Detailed requirements, user journeys, feature boundaries, and the conceptual dom
 | 5 — Identity and session security readiness | Account lifecycle, server-side sessions, CSRF/CORS, secrets, authorization and security tests | **Merged in PR #27; security design documented** |
 | 6 — MVP implementation readiness | Consolidated delivery slices, verification checklist, quality gates and remaining decisions | **Merged in PR #28; implementation sequence documented** |
 | 7 — Build & quality baseline audit | Verify actual repository manifests, starter code, tests, CI and reproducibility gaps | **Completed in Branch 22 audit; documentation only. No application code changed** |
-| 8 — Build & quality baseline improvements | Deterministic builds, frontend lockfile, wrapper decision, required CI checks and test conventions | Not authorized; requires explicit implementation approval |
+| 8 — Build & quality baseline improvements | Deterministic builds, frontend lockfile, Maven Wrapper, required CI checks and test conventions | **In progress in PR #30; implementation authorized for this baseline only. Acceptance remains pending verified CI results** |
 | 9 — Persistence implementation | PostgreSQL 17, Flyway, Docker Compose, repository integration tests | Not authorized; requires approved readiness gates and explicit implementation approval |
 | 10 — Identity and isolation implementation | Account lifecycle, server-side sessions, CSRF, authorization, cross-user tests | Requires identity/security decisions and explicit implementation approval |
 | 11 — Core tracker | Profile, job records, application status and dashboard | Requires persistence and identity gates |
@@ -112,9 +112,9 @@ Set numeric targets after a baseline exists.
 
 Branch 22 confirms that the current repository is still a starter foundation: the backend has only the application entry point and a context-load test; the frontend is a static starter screen; PostgreSQL, Flyway, Docker Compose, authentication, document storage and AI integration are not yet implemented. The CI workflow builds/verifies the backend and builds the frontend, but frontend dependency installation is not lockfile-deterministic and the repository ruleset/required-check configuration remains unverified.
 
-The next recommended slice is a bounded build/quality baseline improvement. Before persistence coding, resolve the database schema and migration policy, backup/restore expectations, identity/session/CSRF/password controls, authorization tests, document upload/storage/scanning policy, Ollama model requirements, AI grounding and privacy controls, and milestone acceptance criteria.
+The bounded build/quality baseline improvement is authorized and underway in Branch 23 / PR #30. Its acceptance criteria must be verified before it is marked complete. This authorization does not extend to persistence or other product-feature coding. Before persistence coding, resolve the database schema and migration policy, backup/restore expectations, identity/session/CSRF/password controls, authorization tests, document upload/storage/scanning policy, Ollama model requirements, AI grounding and privacy controls, and milestone acceptance criteria.
 
-The user must explicitly authorize any implementation branch. Documentation-only approval is not coding authorization.
+The user explicitly authorized implementation of Branch 23's build/quality baseline only. Any subsequent product-feature implementation branch still requires explicit authorization. Documentation-only approval is not coding authorization.
 
 ## 9. Change control
 
