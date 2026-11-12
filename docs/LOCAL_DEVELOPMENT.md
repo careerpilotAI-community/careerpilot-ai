@@ -60,9 +60,26 @@ export FLYWAY_PASSWORD="$DATABASE_PASSWORD"
 ./mvnw --batch-mode --no-transfer-progress spring-boot:run
 ```
 
-Flyway applies pending migrations before the application starts. Hibernate validates the mapped entity schema; it does not create or update tables. The first migration creates the identity/profile/job/application foundation.
+Flyway applies pending migrations before the application starts. Hibernate validates the mapped entity schema; it does not create or update tables. V1 creates the identity/profile/job/application foundation and V2 creates the JDBC-backed Spring Session tables.
 
 The API starts at `http://localhost:8080`.
+
+For local account registration, start the backend with the `local` profile enabled:
+
+- PowerShell: `$env:SPRING_PROFILES_ACTIVE = "local"`
+- Linux / macOS / Git Bash: `export SPRING_PROFILES_ACTIVE=local`
+
+The local profile enables registration and permits the Vite origin `http://localhost:5173`. Registration is disabled by default in the base configuration; keep it disabled for remote deployments until a real email-verification delivery flow is implemented. Do not expose the local profile publicly.
+
+### Authentication API
+
+- `GET /api/auth/csrf` — obtain the CSRF token before a state-changing request.
+- `POST /api/auth/register` — local-profile registration; JSON body: `{ "email": "you@example.com", "password": "at-least-12-characters" }`.
+- `POST /api/auth/login` — authenticate and establish a server-side session.
+- `GET /api/auth/me` — return the current authenticated account.
+- `POST /api/auth/logout` — invalidate the current session.
+
+Send the returned CSRF token in the header named by `headerName` for POST/PUT/PATCH/DELETE requests. Keep browser requests credentialed so the HttpOnly session cookie is sent. The session cookie is HttpOnly, SameSite=Lax, host-only, and Secure by default. The local profile disables Secure only for local HTTP development. Idle timeout is 30 minutes and the absolute authenticated-session lifetime is 12 hours by default; configure through environment variables when necessary.
 Health check: `http://localhost:8080/actuator/health`
 
 Run backend verification and tests with:
@@ -106,4 +123,4 @@ Use `npm ci` for clean, lockfile-based installs. When intentionally changing fro
 ## Current scope
 This foundation provides a Spring Boot API, PostgreSQL 17 persistence schema and repositories for account/profile/job/application foundations, Flyway migrations, local Compose database startup, Actuator health endpoint, PostgreSQL integration tests, React starter screen, Vite development proxy, Maven Wrapper, deterministic frontend dependency lockfile, and GitHub Actions build/quality validation.
 
-Registration, login, sessions, CSRF, user-facing profile/job/application workflows, resume storage, AI provider integration, backup automation, and cloud deployment remain later milestones.
+User registration/login, JDBC-backed sessions, CSRF, CORS, password hashing, and the first authentication UI are implemented in Branch 27. User-facing profile/job/application workflows, email verification and recovery, rate limiting, resume storage, AI provider integration, backup automation, and cloud deployment remain later milestones.
