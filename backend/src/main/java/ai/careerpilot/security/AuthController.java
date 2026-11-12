@@ -12,7 +12,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContext;
@@ -57,13 +57,14 @@ public class AuthController {
         }
         String email = normalize(request.email());
         if (users.existsByEmail(email)) {
-            return ResponseEntity.status(HttpStatus.CONFLICT)
-                .body(Map.of("message", "An account with this email already exists."));
+            return ResponseEntity.accepted()
+                .body(Map.of("message", "If registration is available for this address, the account can now be used."));
         }
         UserEntity account = new UserEntity(email, passwordEncoder.encode(request.password()));
         account.setAccountStatus("ACTIVE");
         users.save(account);
-        return ResponseEntity.status(HttpStatus.CREATED).body(Map.of("email", email));
+        return ResponseEntity.accepted()
+            .body(Map.of("message", "If registration is available for this address, the account can now be used."));
     }
 
     @PostMapping("/login")
@@ -84,7 +85,7 @@ public class AuthController {
             SecurityContextHolder.setContext(context);
             contextRepository.saveContext(context, servletRequest, servletResponse);
             return ResponseEntity.ok(Map.of("email", authentication.getName()));
-        } catch (BadCredentialsException ex) {
+        } catch (AuthenticationException ex) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                 .body(Map.of("message", "Invalid email or password."));
         }
