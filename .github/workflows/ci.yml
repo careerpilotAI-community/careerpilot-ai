@@ -45,15 +45,6 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
       - name: Install dependencies from lockfile
         run: npm ci
-      - name: Temporary formatter extraction for Branch 28
-        run: |
-          npx prettier --write src/Tracker.tsx src/styles.css
-          echo "===TRACKER_BEGIN==="
-          cat src/Tracker.tsx
-          echo "===TRACKER_END==="
-          echo "===CSS_BEGIN==="
-          cat src/styles.css
-          echo "===CSS_END==="
       - name: Lint
         run: npm run lint
       - name: Check formatting
