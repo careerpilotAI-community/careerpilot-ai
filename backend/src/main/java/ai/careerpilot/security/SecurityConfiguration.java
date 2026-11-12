@@ -1,6 +1,7 @@
 package ai.careerpilot.security;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -62,6 +63,14 @@ public class SecurityConfiguration {
                 .sessionFixation(fixation -> fixation.migrateSession()));
         http.addFilterBefore(absoluteSessionExpiryFilter, AuthorizationFilter.class);
         return http.build();
+    }
+
+    @Bean
+    FilterRegistrationBean<AbsoluteSessionExpiryFilter> disableContainerRegistration(
+            AbsoluteSessionExpiryFilter filter) {
+        FilterRegistrationBean<AbsoluteSessionExpiryFilter> registration = new FilterRegistrationBean<>(filter);
+        registration.setEnabled(false);
+        return registration;
     }
 
     @Bean
