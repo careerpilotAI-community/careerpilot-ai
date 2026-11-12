@@ -17,5 +17,15 @@ services:
       retries: 12
       start_period: 10s
 
+  clamav:
+    image: clamav/clamav:1.4
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${CLAMAV_PORT:-3310}:3310"
+    volumes:
+      - careerpilot-clamav-data:/var/lib/clamav
+    # ClamAV is intentionally not exposed beyond loopback in this local stack.
+
 volumes:
   careerpilot-postgres-data:
+  careerpilot-clamav-data:

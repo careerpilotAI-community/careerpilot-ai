@@ -1,10 +1,17 @@
 package ai.careerpilot;
 
 import ai.careerpilot.persistence.entity.JobEntity;
+import ai.careerpilot.document.MalwareScanner;
 import ai.careerpilot.persistence.entity.UserEntity;
 import ai.careerpilot.persistence.repository.JobRepository;
 import ai.careerpilot.persistence.repository.UserRepository;
 import org.junit.jupiter.api.Test;
+import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.mock.web.MockMultipartFile;
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.pdmodel.PDPage;
+import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -25,6 +32,10 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
+import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.ArgumentMatchers.any;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -60,11 +71,14 @@ class CareerPilotApiApplicationTests {
     @Autowired
     private MockMvc mockMvc;
 
+    @MockBean
+    private MalwareScanner malwareScanner;
+
     @Test
     void contextLoadsAfterFreshFlywayMigration() {
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT version FROM flyway_schema_history WHERE success = true ORDER BY installed_rank DESC LIMIT 1",
-                String.class)).isEqualTo("2");
+                String.class)).isEqualTo("3");
     }
 
 
@@ -234,6 +248,45 @@ class CareerPilotApiApplicationTests {
 
         mockMvc.perform(get("/api/jobs/{id}", jobId).with(user(other.getEmail())))
             .andExpect(status().isNotFound());
+    }
+
+
+    @Test
+    void resumeUploadIsScannedAndDownloadsAreOwnerScoped() throws Exception {
+        when(malwareScanner.scan(any(InputStream.class))).thenReturn(new MalwareScanner.ScanResult(true, "CLEAN"));
+        UserEntity owner=userRepository.saveAndFlush(new UserEntity("resume-owner@example.com","test-only-password-hash"));
+        UserEntity other=userRepository.saveAndFlush(new UserEntity("resume-other@example.com","test-only-password-hash"));
+        byte[] pdf;
+        try(PDDocument document=new PDDocument(); ByteArrayOutputStream output=new ByteArrayOutputStream()) {
+            document.addPage(new PDPage()); document.save(output); pdf=output.toByteArray();
+        }
+        MockMultipartFile file=new MockMultipartFile("file","original.pdf","application/pdf",pdf);
+        var result=mockMvc.perform(multipart("/api/resumes").file(file).param("kind","ORIGINAL")
+                .with(user(owner.getEmail())).with(csrf()))
+            .andExpect(status().isCreated()).andReturn();
+        UUID id=UUID.fromString(com.jayway.jsonpath.JsonPath.read(result.getResponse().getContentAsString(),"$.id"));
+        mockMvc.perform(get("/api/resumes/{id}/download",id).with(user(owner.getEmail())))
+            .andExpect(status().isOk())
+            .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.header().string("X-Content-Type-Options","nosniff"));
+        mockMvc.perform(get("/api/resumes/{id}/download",id).with(user(other.getEmail())))
+            .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void resumeUploadFailsClosedWhenMalwareScannerIsUnavailable() throws Exception {
+        when(malwareScanner.scan(any(InputStream.class))).thenThrow(new java.io.IOException("scanner unavailable"));
+        UserEntity owner=userRepository.saveAndFlush(new UserEntity("resume-scan-failure@example.com","test-only-password-hash"));
+        byte[] pdf;
+        try(PDDocument document=new PDDocument(); ByteArrayOutputStream output=new ByteArrayOutputStream()) {
+            document.addPage(new PDPage()); document.save(output); pdf=output.toByteArray();
+        }
+        MockMultipartFile file=new MockMultipartFile("file","resume.pdf","application/pdf",pdf);
+        mockMvc.perform(multipart("/api/resumes").file(file).param("kind","ORIGINAL")
+                .with(user(owner.getEmail())).with(csrf()))
+            .andExpect(status().isServiceUnavailable());
+        mockMvc.perform(get("/api/resumes").with(user(owner.getEmail())))
+            .andExpect(status().isOk())
+            .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$").isEmpty());
     }
 
     @Test

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 import Tracker from './Tracker';
+import ResumeManager from './ResumeManager';
 
 type CsrfState = {
   headerName: string;
@@ -138,6 +139,7 @@ function App() {
             </div>
           </header>
           <Tracker csrf={csrf} />
+          <ResumeManager csrf={csrf} />
         </>
       ) : (
         <section className="hero" aria-labelledby="page-title">

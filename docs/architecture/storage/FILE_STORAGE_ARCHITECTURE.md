@@ -167,7 +167,15 @@ Deletion should first make the record inaccessible (DELETING/tombstone), then re
 - Ensure logs and metrics contain no private filenames, resume contents, credentials, or signed URLs.
 - Document incident response for leaked object credentials, public bucket misconfiguration, malware detection after upload, and accidental deletion.
 
-## 11. Branch 29 decision record and remaining gates
+## 11. Branch 30 implementation status
+
+Branch 30 adds the first local filesystem adapter and a synchronous upload path. It stores PDF/DOCX bytes outside PostgreSQL and outside the repository, validates actual PDF structure with PDFBox, checks DOCX package parts/XML with external entities disabled and bounded expansion, computes SHA-256, and exposes only owner-authorized metadata and streaming downloads. ClamAV INSTREAM is the default scanner; errors fail closed. The local Spring profile includes a scanner bypass only for synthetic fixtures carrying an explicit test marker. Never use that profile for real personal documents.
+
+The implementation currently enforces a 10 MiB file ceiling, 100 MiB per-user quota, and 2 GiB deployment quota. Quota checks are serialized with a PostgreSQL advisory transaction lock. Originals and tailored assets are separate immutable records; no in-place replacement or delete endpoint is exposed.
+
+This is not hosted-production readiness. Backups/restores, encryption and key management, retention/account deletion, storage reconciliation, rate/concurrency controls, operational monitoring, and Windows ACL hardening remain open. The local filesystem root must be backed up and access-controlled by the operator.
+
+## 12. Branch 29 decision record and remaining gates
 
 ### Approved decisions
 
@@ -208,4 +216,4 @@ Deletion should first make the record inaccessible (DELETING/tombstone), then re
 
 The initial hosted deployment must not proceed until the open security and operational items relevant to that deployment are resolved. A local implementation may proceed only under a separately approved Branch 30 implementation scope and must preserve the hosted fail-closed boundary.
 
-**Implementation gate:** Branch 29 is documentation only. It adds no upload controllers, storage SDK dependencies, filesystem adapters, object-store buckets, scanner integration, document parsers, Flyway migrations, or runtime configuration. A separate explicit approval is required for Branch 30 implementation.
+**Implementation record:** Branch 29 remains a documentation-only decision record and introduced no runtime implementation. Branch 30, separately approved, adds the first local filesystem upload/list/download slice described above. Its implementation does not close the outstanding hosted-deployment security and operations gates.
