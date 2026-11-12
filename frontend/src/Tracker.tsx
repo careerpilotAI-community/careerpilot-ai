@@ -5,7 +5,7 @@ type Skill={id:string;skillName:string};
 type AppRecord={id:string;jobId:string;jobTitle:string;companyName:string;status:string;appliedDate:string|null;notes:string|null;nextActionDate:string|null;interviewAt:string|null;interviewTimezone:string|null};
 type Profile={displayName:string|null;professionalSummary:string|null;experienceYears:number|null};
 type Summary={totalJobs:number;totalApplications:number;applicationsByStatus:Record<string,number>;upcomingInterviews:{applicationId:string;jobTitle:string;companyName:string;interviewAt:string}[]};
-const statuses=['SAVED','APPLIED','SCREENING','INTERVIEW','OFFER','REJECTED','WITHDRAWN'];
+const statuses=['SAVED','PREPARING','APPLIED','INTERVIEWING','OFFER','REJECTED','WITHDRAWN','CLOSED'];
 export default function Tracker({csrf}:{csrf:Csrf}){
  const [profile,setProfile]=useState({displayName:'',professionalSummary:'',experienceYears:''});
  const [skills,setSkills]=useState<Skill[]>([]);const [jobs,setJobs]=useState<Job[]>([]);const [apps,setApps]=useState<AppRecord[]>([]);
@@ -18,7 +18,7 @@ export default function Tracker({csrf}:{csrf:Csrf}){
  return <section className="tracker-shell" aria-label="Career workspace">
   <div className="tracker-heading"><div><p className="eyebrow">YOUR WORKSPACE</p><h2>Career tracker</h2><p className="tracker-subtitle">Manage your profile, saved opportunities and application progress.</p></div><button className="secondary-button" onClick={()=>void load()}>Refresh</button></div>
   {error&&<p className="feedback error" role="alert">{error}</p>}{notice&&<p className="feedback success" role="status">{notice}</p>}
-  <div className="summary-grid"><article className="summary-card"><span>Saved jobs</span><strong>{summary?.totalJobs??0}</strong></article><article className="summary-card"><span>Applications</span><strong>{summary?.totalApplications??0}</strong></article><article className="summary-card"><span>Interviews</span><strong>{summary?.applicationsByStatus?.INTERVIEW??0}</strong></article></div>
+  <div className="summary-grid"><article className="summary-card"><span>Saved jobs</span><strong>{summary?.totalJobs??0}</strong></article><article className="summary-card"><span>Applications</span><strong>{summary?.totalApplications??0}</strong></article><article className="summary-card"><span>Interviews</span><strong>{summary?.applicationsByStatus?.INTERVIEWING??0}</strong></article></div>
   <div className="tracker-grid">
    <section className="tracker-card"><h3>Career profile</h3><form onSubmit={e=>{e.preventDefault();void run(()=>api('/api/profile','PUT',{...profile,experienceYears:profile.experienceYears?Number(profile.experienceYears):null}),'Profile saved.');}}>
     <label>Display name<input maxLength={160} value={profile.displayName} onChange={e=>setProfile({...profile,displayName:e.target.value})}/></label>
