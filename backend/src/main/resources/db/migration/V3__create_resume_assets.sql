@@ -5,7 +5,7 @@ CREATE TABLE resume_assets (
     original_filename VARCHAR(255) NOT NULL,
     media_type VARCHAR(100) NOT NULL,
     size_bytes BIGINT NOT NULL,
-    checksum_sha256 CHAR(64) NOT NULL,
+    checksum_sha256 VARCHAR(64) NOT NULL,
     storage_key VARCHAR(80) NOT NULL,
     status VARCHAR(20) NOT NULL,
     scanner_result VARCHAR(32) NOT NULL,
