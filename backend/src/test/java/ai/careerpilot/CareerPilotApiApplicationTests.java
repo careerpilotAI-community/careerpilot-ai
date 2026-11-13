@@ -317,6 +317,33 @@ class CareerPilotApiApplicationTests {
     }
 
     @Test
+    void malwareRejectedUploadGetsTwentyFourHourCleanupDeadline() throws Exception {
+        when(malwareScanner.scan(any(InputStream.class))).thenReturn(new MalwareScanner.ScanResult(false, "INFECTED"));
+        UserEntity owner = userRepository.saveAndFlush(new UserEntity(
+            "resume-malware-" + UUID.randomUUID() + "@example.com", "test-only-password-hash"));
+        byte[] pdf;
+        try (PDDocument document = new PDDocument(); ByteArrayOutputStream output = new ByteArrayOutputStream()) {
+            document.addPage(new PDPage());
+            document.save(output);
+            pdf = output.toByteArray();
+        }
+        mockMvc.perform(multipart("/api/resumes")
+                .file(new MockMultipartFile("file", "rejected.pdf", "application/pdf", pdf))
+                .param("kind", "ORIGINAL").with(user(owner.getEmail())).with(csrf()))
+            .andExpect(status().isUnprocessableEntity());
+
+        var rejectedAttempt = jdbcTemplate.queryForMap("""
+            SELECT job_status, reason_code, expires_at
+            FROM resume_upload_cleanup_jobs
+            WHERE reason_code='UPLOAD_REJECTED'
+            ORDER BY created_at DESC LIMIT 1
+            """);
+        assertThat(rejectedAttempt.get("job_status")).isEqualTo("PENDING");
+        assertThat(((java.sql.Timestamp) rejectedAttempt.get("expires_at")).toInstant())
+            .isAfter(java.time.Instant.now().plus(java.time.Duration.ofHours(23)));
+    }
+
+    @Test
     void abandonedUploadIsPurgedAfterRetentionDeadlineAndAbsenceIsVerified() throws Exception {
         String key = UUID.randomUUID().toString();
         documentStorage.storeQuarantined(new java.io.ByteArrayInputStream(new byte[] {1, 2, 3}), key);
