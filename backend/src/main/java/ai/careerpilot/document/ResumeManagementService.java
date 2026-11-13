@@ -67,7 +67,7 @@ public class ResumeManagementService {
             ResumeAssetEntity saved=assets.save(new ResumeAssetEntity(owner,kind,filename,valid.mediaType(),bytes.length,checksum,key,verdict));
             jdbc.update("""
                 UPDATE resume_upload_cleanup_jobs
-                SET job_status='COMPLETED', reason_code='UPLOAD_ACCEPTED', completed_at=CURRENT_TIMESTAMP, processing_started_at=NULL
+                SET job_status='COMPLETED', reason_code='UPLOAD_ACCEPTED', storage_key=NULL, completed_at=CURRENT_TIMESTAMP, processing_started_at=NULL
                 WHERE storage_key=? AND job_status='IN_PROGRESS'
                 """, key);
             return response(saved);
