@@ -63,7 +63,7 @@ if ((Test-PathWithin $backupFull $documentsFull) -or (Test-PathWithin $documents
 
 # Never snapshot unresolved deletion work: the corresponding tombstone must first reach the sidecar journal.
 $env:PGPASSWORD = $env:DATABASE_PASSWORD
-$pendingSql = "SELECT (SELECT COUNT(*) FROM resume_deletion_jobs WHERE job_status IN ('PENDING','PROCESSING','DEAD_LETTER')) + (SELECT COUNT(*) FROM account_deletion_jobs WHERE owner_id IS NOT NULL AND job_status IN ('PENDING','PROCESSING','DEAD_LETTER'))"
+$pendingSql = "SELECT (SELECT COUNT(*) FROM resume_deletion_jobs WHERE job_status <> 'COMPLETED') + (SELECT COUNT(*) FROM account_deletion_jobs WHERE owner_id IS NOT NULL) + (SELECT COUNT(*) FROM resume_upload_cleanup_jobs WHERE job_status IN ('IN_PROGRESS','PENDING','PROCESSING','DEAD_LETTER'))"
 $pending = & psql.exe --no-psqlrc --tuples-only --no-align --set ON_ERROR_STOP=1 --host=$DatabaseHost --port=$DatabasePort --username=$DatabaseUser --dbname=$Database --command $pendingSql
 if ($LASTEXITCODE -ne 0) { throw "Unable to verify deletion queues; backup refused." }
 if ([int]("$pending".Trim()) -gt 0) { throw "Unresolved individual/account deletion jobs exist. Restart the workers, resolve all jobs, then retry backup." }
