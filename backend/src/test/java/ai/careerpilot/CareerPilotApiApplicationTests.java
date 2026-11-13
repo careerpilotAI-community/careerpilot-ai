@@ -331,7 +331,7 @@ class CareerPilotApiApplicationTests {
         var repeated=mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete("/api/resumes/{id}",id)
                 .with(user(owner.getEmail())).with(csrf()))
             .andExpect(status().isAccepted()).andReturn();
-        assertThat(com.jayway.jsonpath.JsonPath.read(repeated.getResponse().getContentAsString(),"$.operationId")).isEqualTo(operationId);
+        String repeatedOperationId=com.jayway.jsonpath.JsonPath.read(repeated.getResponse().getContentAsString(),"$.operationId");\n        assertThat(repeatedOperationId).isEqualTo(operationId);
 
         mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete("/api/resumes/{id}",id)
                 .with(user(other.getEmail())).with(csrf()))
