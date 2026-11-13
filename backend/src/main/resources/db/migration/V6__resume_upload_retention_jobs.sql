@@ -3,7 +3,7 @@
 CREATE TABLE resume_upload_cleanup_jobs (
     operation_id UUID PRIMARY KEY,
     storage_key VARCHAR(80) NOT NULL UNIQUE,
-    job_status VARCHAR(16) NOT NULL DEFAULT 'PENDING',
+    job_status VARCHAR(16) NOT NULL DEFAULT 'IN_PROGRESS',
     reason_code VARCHAR(32) NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     expires_at TIMESTAMPTZ NOT NULL,
@@ -13,7 +13,7 @@ CREATE TABLE resume_upload_cleanup_jobs (
     last_error_code VARCHAR(40),
     completed_at TIMESTAMPTZ,
     CONSTRAINT ck_resume_upload_cleanup_status
-        CHECK (job_status IN ('PENDING', 'PROCESSING', 'COMPLETED', 'DEAD_LETTER')),
+        CHECK (job_status IN ('IN_PROGRESS', 'PENDING', 'PROCESSING', 'COMPLETED', 'DEAD_LETTER')),
     CONSTRAINT ck_resume_upload_cleanup_reason
         CHECK (reason_code IN ('UPLOAD_IN_PROGRESS', 'UPLOAD_REJECTED', 'UPLOAD_FAILED', 'UPLOAD_ACCEPTED')),
     CONSTRAINT ck_resume_upload_cleanup_attempts CHECK (attempt_count >= 0)
