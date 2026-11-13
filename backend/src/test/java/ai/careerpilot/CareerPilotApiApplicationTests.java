@@ -473,9 +473,11 @@ class CareerPilotApiApplicationTests {
 
     @Test
     void accountDeletionRequiresMatchingEmailPasswordAndCsrf() throws Exception {
-        UserEntity owner = userRepository.saveAndFlush(new UserEntity(
+        UserEntity owner = new UserEntity(
             "account-confirm-" + UUID.randomUUID() + "@example.com",
-            passwordEncoder.encode("account-delete-test-password")));
+            passwordEncoder.encode("account-delete-test-password"));
+        owner.setAccountStatus("ACTIVE");
+        owner = userRepository.saveAndFlush(owner);
         String email = owner.getEmail();
 
         mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete("/api/auth/account")
@@ -504,8 +506,9 @@ class CareerPilotApiApplicationTests {
         jdbcTemplate.update("DELETE FROM account_deletion_jobs");
         when(malwareScanner.scan(any(InputStream.class))).thenReturn(new MalwareScanner.ScanResult(true, "CLEAN"));
         String email = "account-delete-" + UUID.randomUUID() + "@example.com";
-        UserEntity owner = userRepository.saveAndFlush(new UserEntity(
-            email, passwordEncoder.encode("account-delete-test-password")));
+        UserEntity owner = new UserEntity(email, passwordEncoder.encode("account-delete-test-password"));
+        owner.setAccountStatus("ACTIVE");
+        owner = userRepository.saveAndFlush(owner);
 
         byte[] pdf;
         try (PDDocument document = new PDDocument(); ByteArrayOutputStream output = new ByteArrayOutputStream()) {
