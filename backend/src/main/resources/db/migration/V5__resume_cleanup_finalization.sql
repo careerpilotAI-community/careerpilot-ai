@@ -14,6 +14,19 @@ ALTER TABLE resume_assets
     ALTER COLUMN storage_key DROP NOT NULL,
     ALTER COLUMN scanner_result DROP NOT NULL;
 
+ALTER TABLE resume_assets
+    DROP CONSTRAINT ck_resume_assets_size;
+
+-- Active/failed/deleting assets retain the original positive-size limit.
+-- A DELETED tombstone has no binary and therefore stores size_bytes = 0.
+ALTER TABLE resume_assets
+    ADD CONSTRAINT ck_resume_assets_size
+    CHECK (
+        (status = 'DELETED' AND size_bytes = 0)
+        OR
+        (status <> 'DELETED' AND size_bytes > 0 AND size_bytes <= 10485760)
+    );
+
 ALTER TABLE resume_deletion_jobs
     ADD COLUMN processing_started_at TIMESTAMPTZ;
 
