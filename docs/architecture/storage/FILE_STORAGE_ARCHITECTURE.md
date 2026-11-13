@@ -249,3 +249,18 @@ Branch 34 introduces the first runtime deletion boundary for individual resume a
 - The binary is not removed in this milestone. A later worker milestone consumes the durable job and performs bounded, retryable physical cleanup. Do not report deletion as physically complete until that worker verifies absence.
 
 The schema change is additive (Flyway V4); existing V1–V3 migrations are unchanged. No account-deletion, retention scheduler, backup, encryption, or cleanup-worker behavior is included.
+
+
+## 13. Branch 35 — durable physical deletion worker
+
+Branch 35 consumes the durable jobs created by Branch 34:
+
+- A scheduled worker claims one eligible job at a time using PostgreSQL row locking and `SKIP LOCKED`; separate application instances do not process the same fresh claim concurrently.
+- Claims increment the attempt count and record a processing timestamp. A claim left PROCESSING for more than five minutes is eligible for recovery after a worker interruption.
+- The storage adapter's `remove` operation is idempotent across both quarantine and available locations. The worker then calls `exists`; a successful delete response alone is not accepted as proof of absence.
+- Only after absence is verified does one database transaction mark the asset DELETED, scrub the filename, media type, checksum, storage key, scanner result and byte size, and mark the job COMPLETED.
+- Failures use a safe fixed error code and exponential retry delay (30 seconds up to six hours). After eight attempts the job enters DEAD_LETTER and requires operator investigation; it is not reported as deleted.
+- A partially removed object is safe to retry. If metadata finalization fails after binary removal, the durable PROCESSING job is reclaimed after the lease timeout; the repeated remove/absence check then permits finalization.
+- The asset's owner-scoped tombstone and minimal job record remain so duplicate API calls cannot recreate deletion work. The document-identifying metadata and binary are removed after verification.
+
+**Scope boundary:** this worker processes explicit user deletion requests only. The 24-hour rejected/abandoned-upload retention sweep, account deletion, backup deletion replay, storage reconciliation, and operator tooling remain separate milestones. DEAD_LETTER is a failure state, not successful deletion.
