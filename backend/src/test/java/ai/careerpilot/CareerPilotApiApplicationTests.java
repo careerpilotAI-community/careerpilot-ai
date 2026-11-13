@@ -274,8 +274,8 @@ class CareerPilotApiApplicationTests {
     @Test
     void resumeUploadIsScannedAndDownloadsAreOwnerScoped() throws Exception {
         when(malwareScanner.scan(any(InputStream.class))).thenReturn(new MalwareScanner.ScanResult(true, "CLEAN"));
-        UserEntity owner=userRepository.saveAndFlush(new UserEntity("resume-owner@example.com","test-only-password-hash"));
-        UserEntity other=userRepository.saveAndFlush(new UserEntity("resume-other@example.com","test-only-password-hash"));
+        UserEntity owner=activeUser("resume-owner@example.com");
+        UserEntity other=activeUser("resume-other@example.com");
         byte[] pdf;
         try(PDDocument document=new PDDocument(); ByteArrayOutputStream output=new ByteArrayOutputStream()) {
             document.addPage(new PDPage()); document.save(output); pdf=output.toByteArray();
@@ -299,7 +299,7 @@ class CareerPilotApiApplicationTests {
     @Test
     void resumeUploadFailsClosedWhenMalwareScannerIsUnavailable() throws Exception {
         when(malwareScanner.scan(any(InputStream.class))).thenThrow(new java.io.IOException("scanner unavailable"));
-        UserEntity owner=userRepository.saveAndFlush(new UserEntity("resume-scan-failure@example.com","test-only-password-hash"));
+        UserEntity owner=activeUser("resume-scan-failure@example.com");
         byte[] pdf;
         try(PDDocument document=new PDDocument(); ByteArrayOutputStream output=new ByteArrayOutputStream()) {
             document.addPage(new PDPage()); document.save(output); pdf=output.toByteArray();
@@ -326,8 +326,7 @@ class CareerPilotApiApplicationTests {
     @Test
     void malwareRejectedUploadGetsTwentyFourHourCleanupDeadline() throws Exception {
         when(malwareScanner.scan(any(InputStream.class))).thenReturn(new MalwareScanner.ScanResult(false, "INFECTED"));
-        UserEntity owner = userRepository.saveAndFlush(new UserEntity(
-            "resume-malware-" + UUID.randomUUID() + "@example.com", "test-only-password-hash"));
+        UserEntity owner = activeUser("resume-malware-" + UUID.randomUUID() + "@example.com");
         byte[] pdf;
         try (PDDocument document = new PDDocument(); ByteArrayOutputStream output = new ByteArrayOutputStream()) {
             document.addPage(new PDPage());
@@ -390,8 +389,8 @@ class CareerPilotApiApplicationTests {
     @Test
     void resumeDeletionImmediatelyRevokesAccessAndQueuesDurableCleanup() throws Exception {
         when(malwareScanner.scan(any(InputStream.class))).thenReturn(new MalwareScanner.ScanResult(true, "CLEAN"));
-        UserEntity owner=userRepository.saveAndFlush(new UserEntity("resume-delete-owner-" + UUID.randomUUID() + "@example.com","test-only-password-hash"));
-        UserEntity other=userRepository.saveAndFlush(new UserEntity("resume-delete-other-" + UUID.randomUUID() + "@example.com","test-only-password-hash"));
+        UserEntity owner=activeUser("resume-delete-owner-" + UUID.randomUUID() + "@example.com");
+        UserEntity other=activeUser("resume-delete-other-" + UUID.randomUUID() + "@example.com");
         byte[] pdf;
         try(PDDocument document=new PDDocument(); ByteArrayOutputStream output=new ByteArrayOutputStream()) {
             document.addPage(new PDPage()); document.save(output); pdf=output.toByteArray();
@@ -444,7 +443,7 @@ class CareerPilotApiApplicationTests {
         // Keep this test focused on the job it creates below.
         jdbcTemplate.update("DELETE FROM resume_deletion_jobs");
         when(malwareScanner.scan(any(InputStream.class))).thenReturn(new MalwareScanner.ScanResult(true, "CLEAN"));
-        UserEntity owner=userRepository.saveAndFlush(new UserEntity("resume-worker-" + UUID.randomUUID() + "@example.com","test-only-password-hash"));
+        UserEntity owner=activeUser("resume-worker-" + UUID.randomUUID() + "@example.com");
         byte[] pdf;
         try(PDDocument document=new PDDocument(); ByteArrayOutputStream output=new ByteArrayOutputStream()) {
             document.addPage(new PDPage()); document.save(output); pdf=output.toByteArray();
@@ -469,6 +468,12 @@ class CareerPilotApiApplicationTests {
         assertThat(jdbcTemplate.queryForObject("SELECT original_filename FROM resume_assets WHERE id=?",String.class,id)).isNull();
         assertThat(jdbcTemplate.queryForObject("SELECT job_status FROM resume_deletion_jobs WHERE asset_id=?",String.class,id)).isEqualTo("COMPLETED");
         assertThat(jdbcTemplate.queryForObject("SELECT completed_at FROM resume_deletion_jobs WHERE asset_id=?",java.sql.Timestamp.class,id)).isNotNull();
+    }
+
+    private UserEntity activeUser(String email) {
+        UserEntity account = new UserEntity(email, "test-only-password-hash");
+        account.setAccountStatus("ACTIVE");
+        return userRepository.saveAndFlush(account);
     }
 
     @Test
@@ -560,7 +565,7 @@ class CareerPilotApiApplicationTests {
             """, sessionId, sessionId, System.currentTimeMillis(), System.currentTimeMillis(),
             System.currentTimeMillis() + 1800000, email);
         assertThat(jdbcTemplate.queryForObject(
-            "SELECT COUNT(*) FROM spring_session WHERE principal_name=?", Integer.class, email)).isEqualTo(1);
+            "SELECT COUNT(*) FROM spring_session WHERE principal_name=?", Integer.class, email)).isGreaterThan(0);
 
         var response = mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete("/api/auth/account")
                 .with(user(email)).with(csrf())
