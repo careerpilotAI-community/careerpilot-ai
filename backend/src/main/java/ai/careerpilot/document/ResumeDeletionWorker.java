@@ -105,7 +105,9 @@ public class ResumeDeletionWorker {
                 checksum_sha256=NULL,
                 storage_key=NULL,
                 scanner_result=NULL,
-                size_bytes=0
+                size_bytes=0,
+                deletion_requested_at=NULL,
+                deletion_reason=NULL
             WHERE id=? AND status='DELETING' AND storage_key=?
             """, job.assetId(), job.storageKey());
         if (updated != 1) throw new IllegalStateException("Deletion asset state changed unexpectedly.");
