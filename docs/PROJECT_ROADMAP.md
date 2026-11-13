@@ -120,7 +120,7 @@ The repository's current implementation is materially beyond the historical Bran
 - **Core tracker:** Branch 28 / PR #35 is merged. It implements profile and skills management, owner-scoped job and application workflows, dashboard summaries, responsive React workspace integration and cross-user integration coverage. Backend Maven verification and frontend install/lint/format/tests/build passed in CI run `43177048994`.
 - **Resume management:** Branch 30 / PR #38 is merged. It implements PDF/DOCX upload, private local filesystem storage, ClamAV scanning, quotas, owner-scoped metadata/list/download, and immutable original/tailored assets. It remains a local-first implementation, not hosted-production ready.
 - **Lifecycle/recovery:** Branch 31 defines deletion, retention, reconciliation, coordinated backup/restore, encryption/key management, Windows ACL, scanner operations, and explicit local readiness gates. Branch 33 approved the policy defaults. Branch 34 adds immediate owner-scoped asset access revocation and a durable cleanup queue. Branch 35 adds verified physical cleanup, retry/recovery, and metadata scrubbing for explicit user deletions.
-- **Not yet implemented:** account deletion, storage reconciliation, backup/restore automation and restore drills, encryption/key management, Ollama integration, AI job matching/suggestions, and integrated local release validation. Branch 36 implements the approved 24-hour rejected/failed/abandoned-upload cleanup.
+- **Lifecycle/recovery after Branch 36:** Branch 37 implements confirmed account deletion with immediate session revocation and verified document cleanup. Storage reconciliation, backup/restore automation and restore drills, encryption/key management, Ollama integration, AI job matching/suggestions, and integrated local release validation remain future work. Branch 36 implements the approved 24-hour rejected/failed/abandoned-upload cleanup.
 
 The V1 database constraint defines application statuses as `SAVED`, `PREPARING`, `APPLIED`, `INTERVIEWING`, `OFFER`, `REJECTED`, `WITHDRAWN`, and `CLOSED`; application APIs and UI must use this exact vocabulary. The schema currently supports one current application per user/job; re-application history remains deferred.
 
@@ -208,3 +208,17 @@ Branch 36 implements the owner-approved retention rule for upload attempts that 
 - Cleanup records contain only opaque storage keys and bounded reason/error codes; they do not retain filenames or document content.
 
 **Scope boundary:** active original/tailored assets are not expired by this worker. Individual user deletion remains Branch 34/35. Account deletion, backup deletion replay, storage reconciliation, and operator dead-letter tooling remain separate milestones. This branch does not close the real-personal-resume or hosted-deployment readiness gates.
+
+
+## 19. Branch 37 — confirmed account deletion
+
+Branch 37 implements the approved account-deletion workflow:
+
+- The authenticated owner must submit the exact account email and current password, with CSRF protection, before deletion is accepted.
+- The account is immediately marked `DELETION_PENDING`; subsequent password authentication is disabled, all JDBC sessions indexed to the account are revoked, and the current request session is invalidated.
+- A durable account-deletion job is queued. The worker removes every attributable resume binary and rejected/abandoned upload object, independently verifies storage absence, and only then deletes the account's resume metadata, tracker records, profile, skills, and user row.
+- The worker uses bounded batches, PostgreSQL row locking, stale-lease recovery, exponential retry, and a DEAD_LETTER state after eight failed attempts. A DEAD_LETTER account remains inaccessible and is not reported as deleted.
+- Upload-cleanup records now carry an owner ID until completion, then scrub it. Legacy unowned rejected/abandoned upload objects remain covered by the 24-hour retention worker.
+- Completed deletion leaves only a non-user-identifying metadata audit event with a 12-month expiry. The durable job scrubs its owner ID on completion.
+
+**Important boundaries:** the endpoint returns accepted when deletion is queued, not when physical deletion is complete. Only a COMPLETED job means the worker verified document absence and removed relational data. DEAD_LETTER jobs require operator investigation. Backup copies are not yet replayed or erased by this branch; Branch 38 must implement the approved 28-day backup-erasure window and restore-time deletion replay. Real personal-resume use remains NOT SAFE / not approved, and hosted/public deployment remains NOT READY.
