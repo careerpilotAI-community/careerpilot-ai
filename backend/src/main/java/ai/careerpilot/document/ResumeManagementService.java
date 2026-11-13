@@ -5,6 +5,9 @@ import ai.careerpilot.persistence.repository.*;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -17,13 +20,16 @@ import java.util.*;
 public class ResumeManagementService {
     private final UserRepository users; private final ResumeAssetRepository assets; private final DocumentStorage storage;
     private final MalwareScanner scanner; private final ResumeFileValidator validator; private final JdbcTemplate jdbc;
-    private final long userQuota; private final long deploymentQuota;
+    private final long userQuota; private final long deploymentQuota; private final TransactionTemplate independentTransactions;
     public ResumeManagementService(UserRepository users, ResumeAssetRepository assets, DocumentStorage storage,
             MalwareScanner scanner, ResumeFileValidator validator, JdbcTemplate jdbc,
+            PlatformTransactionManager transactionManager,
             @Value("${app.documents.user-quota-bytes:104857600}") long userQuota,
             @Value("${app.documents.deployment-quota-bytes:2147483648}") long deploymentQuota) {
         this.users=users;this.assets=assets;this.storage=storage;this.scanner=scanner;this.validator=validator;this.jdbc=jdbc;
         this.userQuota=userQuota;this.deploymentQuota=deploymentQuota;
+        this.independentTransactions=new TransactionTemplate(transactionManager);
+        this.independentTransactions.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
     }
     @Transactional(readOnly=true)
     public List<AssetResponse> list(String email) {
@@ -120,6 +126,21 @@ public class ResumeManagementService {
     private AssetResponse response(ResumeAssetEntity a) {
         return new AssetResponse(a.getId(),a.getAssetKind(),a.getOriginalFilename(),a.getMediaType(),
             a.getSizeBytes(),a.getChecksumSha256(),a.getStatus(),a.getCreatedAt());
+    }
+    private void createUploadCleanupAttempt(String key) {
+        independentTransactions.executeWithoutResult(status -> jdbc.update("""
+            INSERT INTO resume_upload_cleanup_jobs
+                (operation_id, storage_key, job_status, reason_code, created_at, expires_at, attempt_count, next_attempt_at)
+            VALUES (?, ?, 'PENDING', 'UPLOAD_IN_PROGRESS', CURRENT_TIMESTAMP,
+                    CURRENT_TIMESTAMP + INTERVAL '24 hours', 0, CURRENT_TIMESTAMP)
+            """, UUID.randomUUID(), key));
+    }
+    private void markUploadAttemptTerminal(String key, String reason) {
+        independentTransactions.executeWithoutResult(status -> jdbc.update("""
+            UPDATE resume_upload_cleanup_jobs
+            SET reason_code=?, expires_at=CURRENT_TIMESTAMP + INTERVAL '24 hours'
+            WHERE storage_key=? AND job_status='PENDING'
+            """, reason, key));
     }
     private void removeQuietly(String key){try{storage.remove(key);}catch(IOException ignored){}}
     public record AssetResponse(UUID id,String assetKind,String filename,String mediaType,long sizeBytes,String checksumSha256,String status,java.time.Instant createdAt){}
