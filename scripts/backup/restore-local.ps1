@@ -1,5 +1,6 @@
 param(
     [Parameter(Mandatory = $true)][string]$BackupPath,
+    [Parameter(Mandatory = $true)][string]$CurrentDeletionJournal,
     [Parameter(Mandatory = $true)][string]$TargetDocumentRoot,
     [Parameter(Mandatory = $true)][string]$TargetJournalFile,
     [Parameter(Mandatory = $true)][string]$TargetDatabase,
@@ -11,8 +12,11 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-foreach ($path in @($BackupPath, $TargetDocumentRoot, $TargetJournalFile)) {
+foreach ($path in @($BackupPath, $CurrentDeletionJournal, $TargetDocumentRoot, $TargetJournalFile)) {
     if (-not [IO.Path]::IsPathFullyQualified($path)) { throw "All paths must be absolute." }
+}
+if (-not (Test-Path -LiteralPath $CurrentDeletionJournal -PathType Leaf)) {
+    throw "The latest independent deletion journal is required. Never replay only the journal snapshot bundled with an older backup."
 }
 if (-not (Get-Command "pg_restore.exe" -ErrorAction SilentlyContinue)) { throw "pg_restore.exe is required and must be on PATH." }
 if (-not (Get-Command "psql.exe" -ErrorAction SilentlyContinue)) { throw "psql.exe is required and must be on PATH." }
@@ -34,12 +38,9 @@ foreach ($file in $manifest.files) {
 
 $dump = Join-Path $backup "careerpilot.dump"
 $sourceDocuments = Join-Path $backup "documents"
-$sourceJournal = Join-Path $backup "account-deletions.jsonl"
-if (-not (Test-Path $sourceDocuments -PathType Container) -or -not (Test-Path $sourceJournal -PathType Leaf)) {
-    throw "Coordinated database, document, and deletion-journal artifacts are required."
-}
+if (-not (Test-Path $sourceDocuments -PathType Container)) { throw "A coordinated document snapshot is required." }
 if (-not $ReplayDeletionJournal) {
-    throw "Restore is isolated by default. Rerun with -ReplayDeletionJournal to replay tombstones before starting the application."
+    throw "Restore is isolated by default. Rerun with -ReplayDeletionJournal to replay current tombstones before starting the application."
 }
 
 New-Item -ItemType Directory -Force -Path $TargetDocumentRoot | Out-Null
@@ -51,7 +52,8 @@ if ($LASTEXITCODE -ne 0) { throw "pg_restore failed with exit code $LASTEXITCODE
 
 & robocopy.exe $sourceDocuments $TargetDocumentRoot /MIR /COPY:DAT /DCOPY:DAT /R:2 /W:2 /XJ
 if ($LASTEXITCODE -ge 8) { throw "Document restore failed with robocopy exit code $LASTEXITCODE." }
-Copy-Item -LiteralPath $sourceJournal -Destination $TargetJournalFile -Force
+# Use the latest independent sidecar journal, not the stale copy bundled with the selected recovery point.
+Copy-Item -LiteralPath $CurrentDeletionJournal -Destination $TargetJournalFile -Force
 
 function Invoke-Psql([string]$Sql, [switch]$TuplesOnly) {
     $args = @("--no-psqlrc", "--set", "ON_ERROR_STOP=1", "--host=$DatabaseHost", "--port=$DatabasePort",
