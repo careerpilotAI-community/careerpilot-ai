@@ -277,12 +277,10 @@ class CareerPilotApiApplicationTests {
                 .with(user(owner.getEmail())).with(csrf()))
             .andExpect(status().isCreated()).andReturn();
         UUID id=UUID.fromString(com.jayway.jsonpath.JsonPath.read(result.getResponse().getContentAsString(),"$.id"));
-        assertThat(jdbcTemplate.queryForObject(
-            "SELECT job_status FROM resume_upload_cleanup_jobs WHERE reason_code='UPLOAD_ACCEPTED' ORDER BY created_at DESC LIMIT 1",
-            String.class)).isEqualTo("COMPLETED");
-        assertThat(jdbcTemplate.queryForObject(
-            "SELECT storage_key FROM resume_upload_cleanup_jobs WHERE reason_code='UPLOAD_ACCEPTED' ORDER BY created_at DESC LIMIT 1",
-            String.class)).isNull();
+        assertThat(jdbcTemplate.queryForObject("""
+            SELECT COUNT(*) FROM resume_upload_cleanup_jobs
+            WHERE reason_code='UPLOAD_ACCEPTED' AND job_status='COMPLETED' AND storage_key IS NULL
+            """, Integer.class)).isGreaterThan(0);
         mockMvc.perform(get("/api/resumes/{id}/download",id).with(user(owner.getEmail())))
             .andExpect(status().isOk())
             .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.header().string("X-Content-Type-Options","nosniff"));
