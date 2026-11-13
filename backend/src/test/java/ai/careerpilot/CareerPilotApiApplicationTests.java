@@ -2,6 +2,8 @@ package ai.careerpilot;
 
 import ai.careerpilot.persistence.entity.JobEntity;
 import ai.careerpilot.document.MalwareScanner;
+import ai.careerpilot.document.DocumentStorage;
+import ai.careerpilot.document.ResumeDeletionWorker;
 import ai.careerpilot.persistence.entity.UserEntity;
 import ai.careerpilot.persistence.repository.JobRepository;
 import ai.careerpilot.persistence.repository.UserRepository;
@@ -70,6 +72,12 @@ class CareerPilotApiApplicationTests {
 
     @Autowired
     private MockMvc mockMvc;
+
+    @Autowired
+    private ResumeDeletionWorker resumeDeletionWorker;
+
+    @Autowired
+    private DocumentStorage documentStorage;
 
     @MockBean
     private MalwareScanner malwareScanner;
