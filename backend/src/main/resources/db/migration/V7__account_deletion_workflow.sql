@@ -6,7 +6,10 @@ ALTER TABLE resume_upload_cleanup_jobs
 -- Legacy attempts cannot be attributed because earlier schema versions did not store ownership.
 -- They are safe to purge immediately: accepted uploads have already nulled their storage key.
 UPDATE resume_upload_cleanup_jobs
-SET expires_at = CURRENT_TIMESTAMP
+SET job_status = CASE WHEN job_status = 'IN_PROGRESS' THEN 'PENDING' ELSE job_status END,
+    reason_code = CASE WHEN job_status = 'IN_PROGRESS' THEN 'UPLOAD_FAILED' ELSE reason_code END,
+    expires_at = CURRENT_TIMESTAMP,
+    next_attempt_at = CURRENT_TIMESTAMP
 WHERE owner_id IS NULL AND storage_key IS NOT NULL;
 
 CREATE INDEX ix_resume_upload_cleanup_owner
