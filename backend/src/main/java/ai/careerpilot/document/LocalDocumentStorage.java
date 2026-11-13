@@ -54,7 +54,17 @@ public class LocalDocumentStorage implements DocumentStorage {
         return Files.newInputStream(target,StandardOpenOption.READ);
     }
     @Override public void remove(String key) throws IOException {
-        Files.deleteIfExists(path(key,"quarantine")); Files.deleteIfExists(path(key,"available"));
+        Files.deleteIfExists(path(key,"quarantine"));
+        Files.deleteIfExists(path(key,"available"));
+    }
+    @Override public boolean exists(String key) throws IOException {
+        Path quarantine = path(key, "quarantine");
+        Path available = path(key, "available");
+        if (Files.isSymbolicLink(quarantine) || Files.isSymbolicLink(available)) {
+            throw new IOException("Unexpected symbolic link in private document storage.");
+        }
+        return Files.exists(quarantine, LinkOption.NOFOLLOW_LINKS)
+            || Files.exists(available, LinkOption.NOFOLLOW_LINKS);
     }
     @Override public Path resolveForInternalUse(String key) { return path(key,"available"); }
 }
