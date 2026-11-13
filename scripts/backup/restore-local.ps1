@@ -108,16 +108,27 @@ $entries = Get-Content -LiteralPath $TargetJournalFile | Where-Object { $_.Trim(
     $entry = $_ | ConvertFrom-Json
     $parsedOperation = [guid]::Empty
     $parsedOwner = [guid]::Empty
+    $parsedAsset = [guid]::Empty
     if ($entry.schemaVersion -ne 1 -or -not [guid]::TryParse($entry.operationId, [ref]$parsedOperation) -or
         -not [guid]::TryParse($entry.ownerId, [ref]$parsedOwner)) {
         throw "Deletion journal contains an invalid or unsupported record; restore halted."
     }
-    [pscustomobject]@{ operationId = $parsedOperation; ownerId = $parsedOwner }
+    if ($entry.deletionType -eq "ASSET") {
+        if (-not [guid]::TryParse($entry.assetId, [ref]$parsedAsset)) { throw "Asset tombstone is missing a valid asset ID." }
+    } elseif ($entry.deletionType -ne "ACCOUNT" -or $null -ne $entry.assetId) {
+        throw "Deletion journal event type is invalid; restore halted."
+    }
+    [pscustomobject]@{ operationId = $parsedOperation; ownerId = $parsedOwner; deletionType = $entry.deletionType; assetId = $parsedAsset }
 }
 
 foreach ($entry in $entries) {
     $owner = $entry.ownerId.ToString()
-    $keys = Invoke-Psql "SELECT storage_key FROM resume_assets WHERE user_id='$owner'::uuid AND storage_key IS NOT NULL UNION SELECT storage_key FROM resume_upload_cleanup_jobs WHERE owner_id='$owner'::uuid AND storage_key IS NOT NULL" -TuplesOnly
+    if ($entry.deletionType -eq "ACCOUNT") {
+        $keys = Invoke-Psql "SELECT storage_key FROM resume_assets WHERE user_id='$owner'::uuid AND storage_key IS NOT NULL UNION SELECT storage_key FROM resume_upload_cleanup_jobs WHERE owner_id='$owner'::uuid AND storage_key IS NOT NULL" -TuplesOnly
+    } else {
+        $asset = $entry.assetId.ToString()
+        $keys = Invoke-Psql "SELECT storage_key FROM resume_assets WHERE id='$asset'::uuid AND user_id='$owner'::uuid AND storage_key IS NOT NULL" -TuplesOnly
+    }
     foreach ($key in $keys) {
         $value = "$key".Trim()
         if ($value -notmatch '^[0-9a-fA-F-]{36}$') { throw "Unexpected non-opaque storage key in restored database; restore halted." }
@@ -127,7 +138,16 @@ foreach ($entry in $entries) {
         }
     }
 
-    $sql = @"
+    if ($entry.deletionType -eq "ASSET") {
+        $asset = $entry.assetId.ToString()
+        $sql = @"
+BEGIN;
+DELETE FROM resume_deletion_jobs WHERE operation_id='$([string]$entry.operationId)'::uuid AND owner_id='$owner'::uuid;
+DELETE FROM resume_assets WHERE id='$asset'::uuid AND user_id='$owner'::uuid;
+COMMIT;
+"@
+    } else {
+        $sql = @"
 BEGIN;
 DELETE FROM spring_session WHERE principal_name=(SELECT email FROM users WHERE id='$owner'::uuid);
 DELETE FROM resume_deletion_jobs WHERE owner_id='$owner'::uuid;
@@ -144,6 +164,7 @@ SET job_status='COMPLETED', owner_id=NULL, completed_at=COALESCE(completed_at, C
 WHERE owner_id='$owner'::uuid;
 COMMIT;
 "@
+    }
     Invoke-Psql $sql | Out-Null
 }
 
