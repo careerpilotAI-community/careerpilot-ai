@@ -33,14 +33,17 @@ public class AuthController {
     private final PasswordEncoder passwordEncoder;
     private final AuthenticationManager authenticationManager;
     private final boolean registrationEnabled;
+    private final AccountDeletionService accountDeletionService;
     private final SecurityContextRepository contextRepository = new HttpSessionSecurityContextRepository();
 
     public AuthController(UserRepository users, PasswordEncoder passwordEncoder,
                           AuthenticationManager authenticationManager,
+                          AccountDeletionService accountDeletionService,
                           @Value("${app.registration.enabled:false}") boolean registrationEnabled) {
         this.users = users;
         this.passwordEncoder = passwordEncoder;
         this.authenticationManager = authenticationManager;
+        this.accountDeletionService = accountDeletionService;
         this.registrationEnabled = registrationEnabled;
     }
 
@@ -96,6 +99,22 @@ public class AuthController {
         return Map.of("email", authentication.getName());
     }
 
+    @DeleteMapping("/account")
+    public ResponseEntity<?> deleteAccount(Authentication authentication,
+            @Valid @RequestBody AccountDeletionRequest confirmation,
+            HttpServletRequest servletRequest) {
+        AccountDeletionService.DeletionAccepted accepted = accountDeletionService.requestDeletion(
+            authentication.getName(), confirmation.confirmationEmail(), confirmation.password());
+        if (servletRequest.getSession(false) != null) {
+            servletRequest.getSession(false).invalidate();
+        }
+        SecurityContextHolder.clearContext();
+        return ResponseEntity.accepted().body(Map.of(
+            "operationId", accepted.operationId(),
+            "status", accepted.status(),
+            "message", "Account deletion has started. This account can no longer be used."));
+    }
+
     private static String normalize(String email) {
         return email.trim().toLowerCase(Locale.ROOT);
     }
@@ -104,4 +123,6 @@ public class AuthController {
                                       @NotBlank @Size(min = 12, max = 128) String password) {}
     public record LoginRequest(@NotBlank @Email @Size(max = 320) String email,
                                @NotBlank @Size(max = 128) String password) {}
+    public record AccountDeletionRequest(@NotBlank @Email @Size(max = 320) String confirmationEmail,
+                                         @NotBlank @Size(max = 128) String password) {}
 }
