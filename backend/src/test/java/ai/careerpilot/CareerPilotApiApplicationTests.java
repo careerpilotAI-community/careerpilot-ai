@@ -42,7 +42,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@SpringBootTest(properties = "app.registration.enabled=true")
+@SpringBootTest(properties = {"app.registration.enabled=true", "app.documents.cleanup.scheduling-enabled=false"})
 @AutoConfigureMockMvc
 @Testcontainers
 class CareerPilotApiApplicationTests {
@@ -371,6 +371,7 @@ class CareerPilotApiApplicationTests {
         UUID id=UUID.fromString(com.jayway.jsonpath.JsonPath.read(upload.getResponse().getContentAsString(),"$.id"));
         String key=jdbcTemplate.queryForObject("SELECT storage_key FROM resume_assets WHERE id=?",String.class,id);
         assertThat(documentStorage.exists(key)).isTrue();
+        jdbcTemplate.update("UPDATE resume_deletion_jobs SET requested_at=CURRENT_TIMESTAMP - INTERVAL '1 day' WHERE asset_id=?",id);
 
         mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete("/api/resumes/{id}",id)
                 .with(user(owner.getEmail())).with(csrf()))
