@@ -7,6 +7,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.io.IOException;
 import java.util.Locale;
 import java.util.UUID;
 
@@ -14,10 +15,13 @@ import java.util.UUID;
 public class AccountDeletionService {
     private final JdbcTemplate jdbc;
     private final PasswordEncoder passwordEncoder;
+    private final AccountDeletionJournal deletionJournal;
 
-    public AccountDeletionService(JdbcTemplate jdbc, PasswordEncoder passwordEncoder) {
+    public AccountDeletionService(JdbcTemplate jdbc, PasswordEncoder passwordEncoder,
+            AccountDeletionJournal deletionJournal) {
         this.jdbc = jdbc;
         this.passwordEncoder = passwordEncoder;
+        this.deletionJournal = deletionJournal;
     }
 
     @Transactional
@@ -48,6 +52,14 @@ public class AccountDeletionService {
             INSERT INTO account_deletion_jobs (operation_id, owner_id, job_status, requested_at, attempt_count)
             VALUES (?, ?, 'PENDING', CURRENT_TIMESTAMP, 0)
             """, operationId, ownerId);
+        try {
+            // Persist outside PostgreSQL before acknowledging deletion. A later restore
+            // must still see this tombstone even when its database snapshot predates it.
+            deletionJournal.record(operationId, ownerId);
+        } catch (IOException failure) {
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
+                    "Account deletion could not be durably recorded. Please retry.", failure);
+        }
         // Spring Session's principal index is the normalized authenticated email.
         jdbc.update("DELETE FROM spring_session WHERE principal_name=?", email);
         return new DeletionAccepted(operationId, "DELETION_PENDING");
