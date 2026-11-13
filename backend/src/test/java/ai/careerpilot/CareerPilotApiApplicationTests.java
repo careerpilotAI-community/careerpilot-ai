@@ -4,6 +4,7 @@ import ai.careerpilot.persistence.entity.JobEntity;
 import ai.careerpilot.document.MalwareScanner;
 import ai.careerpilot.document.DocumentStorage;
 import ai.careerpilot.document.ResumeDeletionWorker;
+import ai.careerpilot.document.ResumeUploadRetentionWorker;
 import ai.careerpilot.persistence.entity.UserEntity;
 import ai.careerpilot.persistence.repository.JobRepository;
 import ai.careerpilot.persistence.repository.UserRepository;
@@ -77,6 +78,9 @@ class CareerPilotApiApplicationTests {
     private ResumeDeletionWorker resumeDeletionWorker;
 
     @Autowired
+    private ResumeUploadRetentionWorker resumeUploadRetentionWorker;
+
+    @Autowired
     private DocumentStorage documentStorage;
 
     @MockBean
@@ -86,7 +90,7 @@ class CareerPilotApiApplicationTests {
     void contextLoadsAfterFreshFlywayMigration() {
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT version FROM flyway_schema_history WHERE success = true ORDER BY installed_rank DESC LIMIT 1",
-                String.class)).isEqualTo("5");
+                String.class)).isEqualTo("6");
     }
 
 
@@ -295,6 +299,41 @@ class CareerPilotApiApplicationTests {
         mockMvc.perform(get("/api/resumes").with(user(owner.getEmail())))
             .andExpect(status().isOk())
             .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$").isEmpty());
+        var failedAttempt = jdbcTemplate.queryForMap("""
+            SELECT job_status, reason_code, expires_at
+            FROM resume_upload_cleanup_jobs
+            WHERE reason_code='UPLOAD_FAILED'
+            ORDER BY created_at DESC LIMIT 1
+            """);
+        assertThat(failedAttempt.get("job_status")).isEqualTo("PENDING");
+        assertThat(failedAttempt.get("reason_code")).isEqualTo("UPLOAD_FAILED");
+        assertThat(((java.sql.Timestamp) failedAttempt.get("expires_at")).toInstant())
+            .isAfter(java.time.Instant.now().plus(java.time.Duration.ofHours(23)));
+    }
+
+    @Test
+    void abandonedUploadIsPurgedAfterRetentionDeadlineAndAbsenceIsVerified() throws Exception {
+        String key = UUID.randomUUID().toString();
+        documentStorage.storeQuarantined(new java.io.ByteArrayInputStream(new byte[] {1, 2, 3}), key);
+        UUID operationId = UUID.randomUUID();
+        jdbcTemplate.update("""
+            INSERT INTO resume_upload_cleanup_jobs
+                (operation_id, storage_key, job_status, reason_code, created_at, expires_at,
+                 attempt_count, next_attempt_at)
+            VALUES (?, ?, 'PENDING', 'UPLOAD_IN_PROGRESS',
+                    CURRENT_TIMESTAMP - INTERVAL '25 hours',
+                    CURRENT_TIMESTAMP - INTERVAL '1 hour', 0, CURRENT_TIMESTAMP - INTERVAL '1 hour')
+            """, operationId, key);
+
+        assertThat(documentStorage.exists(key)).isTrue();
+        assertThat(resumeUploadRetentionWorker.processNextJob()).isTrue();
+        assertThat(documentStorage.exists(key)).isFalse();
+        assertThat(jdbcTemplate.queryForObject(
+            "SELECT job_status FROM resume_upload_cleanup_jobs WHERE operation_id=?",
+            String.class, operationId)).isEqualTo("COMPLETED");
+        assertThat(jdbcTemplate.queryForObject(
+            "SELECT completed_at FROM resume_upload_cleanup_jobs WHERE operation_id=?",
+            java.sql.Timestamp.class, operationId)).isNotNull();
     }
 
     @Test
