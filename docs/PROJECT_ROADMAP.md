@@ -222,7 +222,7 @@ Branch 37 implements the approved account-deletion workflow:
 
 Branch 38 introduces the first local Windows implementation of the approved recovery policy:
 
-- Account deletion acceptance writes an opaque sidecar tombstone (operation UUID, owner UUID, schema version, UTC time) to a journal outside PostgreSQL and document storage before success is returned. The worker also records legacy queued jobs before removing their binaries.
+- Account and individual resume deletion workers write opaque sidecar tombstones (operation UUID, owner UUID, deletion type, optional asset UUID, schema version, UTC time) to a journal outside PostgreSQL and document storage before removing binaries. The account-deletion service also records the request after commit; unresolved jobs block backup creation.
 - Journal writes are append-only, deduplicated by operation UUID, flushed to disk, and protected by a separate lock file. Journal compaction removes entries after 29 days to cover the approved 28-day recovery-point window plus the boundary.
 - A local backup script creates coordinated PostgreSQL, document-root, and journal snapshots with a SHA-256 manifest; it requires an explicit maintenance pause and BitLocker-protected source volumes.
 - Backup retention is capped at 7 daily and 4 weekly recovery points and 28 days. The script does not configure Task Scheduler or prove a restore.
