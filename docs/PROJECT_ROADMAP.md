@@ -232,3 +232,21 @@ Branch 38 introduces the first local Windows implementation of the approved reco
 See [Local Backup & Restore Runbook](architecture/storage/LOCAL_BACKUP_RESTORE_RUNBOOK.md).
 
 **Not yet verified:** PowerShell scripts have not been exercised on the target Windows host; no actual PostgreSQL + filesystem restore drill has passed; no scheduled tasks, independent off-device copy, recovery-key escrow, or effective NTFS ACL inspection is claimed. A successful CI build is not a restore-drill pass. Synthetic-data local testing remains pending; real personal-resume use remains NOT SAFE / not approved; hosted/public deployment remains NOT READY.
+
+
+## 21. Branch 39 — local encryption and recovery-key management
+
+Branch 39 is a documentation and operational-security milestone based on the owner-approved Branch 33 decision. It preserves the existing local filesystem adapter and does not introduce application-level encryption, custom cryptography, a new key database, or a new document format.
+
+- The local profile requires OS-managed full-volume encryption (BitLocker where supported) for the application-data and backup volumes. The independent deletion-journal path must also reside on an encrypted volume; it remains separate from document and backup paths.
+- BitLocker recovery protectors are generated and managed by Windows. Recovery passwords must be escrowed independently of the encrypted computer and retrievable by the owner/authorized recovery administrator.
+- The recovery inventory contains non-secret volume/protector identifiers and verification evidence only. Recovery passwords and key packages must never enter Git, PostgreSQL, document storage, application logs, or an unencrypted backup.
+- Rotation means adding and verifying a replacement recovery-password protector before removing an exposed/obsolete protector. This is not a claim of data-encryption-key rotation or re-encryption.
+- Windows NTFS ACLs must be inspected on the target host; Java POSIX permission fallbacks do not establish Windows access control.
+- Controlled recovery-key validation uses a disposable synthetic-data BitLocker test volume. The full CareerPilot restore drill remains a separate test.
+
+See [File Storage Architecture](architecture/storage/FILE_STORAGE_ARCHITECTURE.md) and [Local Backup & Restore Runbook](architecture/storage/LOCAL_BACKUP_RESTORE_RUNBOOK.md).
+
+**Not yet verified:** target-host Windows edition and BitLocker state; escrow retrieval; recovery-protector rotation; controlled test-volume recovery; effective NTFS ACLs; and the full isolated PostgreSQL + document restore drill. This documentation milestone does not make synthetic-data testing ready or authorize real personal-resume use. Synthetic-data local testing remains pending; real personal-resume use remains NOT SAFE / not approved; hosted/public deployment remains NOT READY.
+
+**Next milestones remain separate:** Branch 40 verifies Windows ACLs, scanner fail-closed behavior, privacy-safe logs, and lifecycle security regressions. Branch 41 performs integrated synthetic-data local validation and records a separate real-resume sign-off only after every required gate is evidenced.
