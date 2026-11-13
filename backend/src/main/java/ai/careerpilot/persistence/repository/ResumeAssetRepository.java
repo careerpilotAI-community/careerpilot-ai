@@ -7,6 +7,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 public interface ResumeAssetRepository extends JpaRepository<ResumeAssetEntity, UUID> {
-    List<ResumeAssetEntity> findAllByUserIdOrderByCreatedAtDesc(UUID userId);\n    List<ResumeAssetEntity> findAllByUserIdAndStatusOrderByCreatedAtDesc(UUID userId, String status);
+    List<ResumeAssetEntity> findAllByUserIdOrderByCreatedAtDesc(UUID userId);
+    List<ResumeAssetEntity> findAllByUserIdAndStatusOrderByCreatedAtDesc(UUID userId, String status);
     Optional<ResumeAssetEntity> findByIdAndUserId(UUID id, UUID userId);
 }
