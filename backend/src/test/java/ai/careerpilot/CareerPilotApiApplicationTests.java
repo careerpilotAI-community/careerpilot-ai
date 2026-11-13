@@ -277,11 +277,12 @@ class CareerPilotApiApplicationTests {
                 .with(user(owner.getEmail())).with(csrf()))
             .andExpect(status().isCreated()).andReturn();
         UUID id=UUID.fromString(com.jayway.jsonpath.JsonPath.read(result.getResponse().getContentAsString(),"$.id"));
-        String successfulStorageKey = jdbcTemplate.queryForObject(
-            "SELECT storage_key FROM resume_assets WHERE id=?", String.class, id);
         assertThat(jdbcTemplate.queryForObject(
-            "SELECT job_status FROM resume_upload_cleanup_jobs WHERE storage_key=?",
-            String.class, successfulStorageKey)).isEqualTo("COMPLETED");
+            "SELECT job_status FROM resume_upload_cleanup_jobs WHERE reason_code='UPLOAD_ACCEPTED' ORDER BY created_at DESC LIMIT 1",
+            String.class)).isEqualTo("COMPLETED");
+        assertThat(jdbcTemplate.queryForObject(
+            "SELECT storage_key FROM resume_upload_cleanup_jobs WHERE reason_code='UPLOAD_ACCEPTED' ORDER BY created_at DESC LIMIT 1",
+            String.class)).isNull();
         mockMvc.perform(get("/api/resumes/{id}/download",id).with(user(owner.getEmail())))
             .andExpect(status().isOk())
             .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.header().string("X-Content-Type-Options","nosniff"));
@@ -366,6 +367,9 @@ class CareerPilotApiApplicationTests {
         assertThat(jdbcTemplate.queryForObject(
             "SELECT completed_at FROM resume_upload_cleanup_jobs WHERE operation_id=?",
             java.sql.Timestamp.class, operationId)).isNotNull();
+        assertThat(jdbcTemplate.queryForObject(
+            "SELECT storage_key FROM resume_upload_cleanup_jobs WHERE operation_id=?",
+            String.class, operationId)).isNull();
     }
 
     @Test
