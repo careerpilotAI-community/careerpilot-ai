@@ -28,7 +28,7 @@ public class ResumeManagementService {
     @Transactional(readOnly=true)
     public List<AssetResponse> list(String email) {
         UUID owner=owner(email);
-        return assets.findAllByUserIdOrderByCreatedAtDesc(owner).stream().map(this::response).toList();
+        return assets.findAllByUserIdAndStatusOrderByCreatedAtDesc(owner,"AVAILABLE").stream().map(this::response).toList();
     }
     @Transactional
     public AssetResponse upload(String email, MultipartFile file, String kind) {
@@ -66,6 +66,39 @@ public class ResumeManagementService {
             throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,"Document validation or malware scanning is unavailable; upload was rejected.");
         }
     }
+    @Transactional
+    public DeletionResponse requestDeletion(String email, UUID id) {
+        UUID owner=owner(email);
+        List<String> states=jdbc.query(
+            "SELECT status FROM resume_assets WHERE id = ? AND user_id = ? FOR UPDATE",
+            (rs,row)->rs.getString("status"), id, owner);
+        if (states.isEmpty()) throw new ResponseStatusException(HttpStatus.NOT_FOUND);
+        String state=states.get(0);
+        if ("DELETING".equals(state)) {
+            return jdbc.queryForObject("""
+                SELECT operation_id, requested_at
+                FROM resume_deletion_jobs
+                WHERE asset_id = ? AND owner_id = ?
+                """, (rs,row)->new DeletionResponse(id,rs.getObject("operation_id",UUID.class),
+                    rs.getTimestamp("requested_at").toInstant(),"DELETING"),id,owner);
+        }
+        if (!"AVAILABLE".equals(state)) throw new ResponseStatusException(HttpStatus.NOT_FOUND);
+        UUID operationId=UUID.randomUUID();
+        java.time.Instant requestedAt=java.time.Instant.now();
+        int changed=jdbc.update("""
+            UPDATE resume_assets
+            SET status='DELETING', deletion_requested_at=?, deletion_reason='USER_REQUEST'
+            WHERE id=? AND user_id=? AND status='AVAILABLE'
+            """,java.sql.Timestamp.from(requestedAt),id,owner);
+        if (changed!=1) throw new ResponseStatusException(HttpStatus.CONFLICT);
+        jdbc.update("""
+            INSERT INTO resume_deletion_jobs
+                (operation_id, asset_id, owner_id, job_status, requested_at, attempt_count)
+            VALUES (?, ?, ?, 'PENDING', ?, 0)
+            """,operationId,id,owner,java.sql.Timestamp.from(requestedAt));
+        return new DeletionResponse(id,operationId,requestedAt,"DELETING");
+    }
+
     @Transactional(readOnly=true)
     public DownloadedAsset download(String email, UUID id) {
         UUID owner=owner(email);
@@ -90,5 +123,5 @@ public class ResumeManagementService {
     }
     private void removeQuietly(String key){try{storage.remove(key);}catch(IOException ignored){}}
     public record AssetResponse(UUID id,String assetKind,String filename,String mediaType,long sizeBytes,String checksumSha256,String status,java.time.Instant createdAt){}
-    public record DownloadedAsset(ResumeAssetEntity asset,InputStream stream){}
+    public record DeletionResponse(UUID assetId,UUID operationId,java.time.Instant requestedAt,String status){}\n    public record DownloadedAsset(ResumeAssetEntity asset,InputStream stream){}
 }
