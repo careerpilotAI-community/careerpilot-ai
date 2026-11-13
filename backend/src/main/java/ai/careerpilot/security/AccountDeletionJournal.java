@@ -30,6 +30,7 @@ public class AccountDeletionJournal {
     private static final int SCHEMA_VERSION = 1;
     private static final long RETENTION_DAYS = 29;
     private final Path journalFile;
+    private final Path lockFile;
     private final ObjectMapper mapper;
 
     public AccountDeletionJournal(
@@ -47,32 +48,30 @@ public class AccountDeletionJournal {
             throw new IOException("Deletion journal must not be a symbolic link.");
         }
         this.journalFile = configured.toAbsolutePath().normalize();
+        this.lockFile = parent.resolve(configured.getFileName().toString() + ".lock");
         this.mapper = mapper;
     }
 
     public synchronized void record(UUID operationId, UUID ownerId) throws IOException {
         if (operationId == null || ownerId == null) throw new IllegalArgumentException("Deletion journal IDs are required.");
-        Files.createDirectories(journalFile.getParent());
-        try (FileChannel channel = FileChannel.open(journalFile,
-                StandardOpenOption.CREATE, StandardOpenOption.READ, StandardOpenOption.WRITE);
-             FileLock ignored = channel.lock()) {
-            channel.position(0);
-            byte[] existing = new byte[(int) channel.size()];
-            ByteBuffer read = ByteBuffer.wrap(existing);
-            while (read.hasRemaining() && channel.read(read) >= 0) { /* read complete journal */ }
-            String content = new String(existing, StandardCharsets.UTF_8);
-            for (String line : content.split("\\R")) {
-                if (line.isBlank()) continue;
-                JournalEntry entry = mapper.readValue(line, JournalEntry.class);
-                if (operationId.toString().equals(entry.operationId())) return;
+        try (FileChannel lockChannel = FileChannel.open(lockFile, StandardOpenOption.CREATE, StandardOpenOption.WRITE);
+             FileLock ignored = lockChannel.lock()) {
+            if (Files.exists(journalFile, LinkOption.NOFOLLOW_LINKS)) {
+                for (String line : Files.readAllLines(journalFile, StandardCharsets.UTF_8)) {
+                    if (line.isBlank()) continue;
+                    JournalEntry entry = mapper.readValue(line, JournalEntry.class);
+                    if (operationId.toString().equals(entry.operationId())) return;
+                }
             }
             JournalEntry entry = new JournalEntry(SCHEMA_VERSION, operationId.toString(),
                     ownerId.toString(), Instant.now().toString());
             byte[] bytes = (mapper.writeValueAsString(entry) + System.lineSeparator()).getBytes(StandardCharsets.UTF_8);
-            channel.position(channel.size());
-            ByteBuffer write = ByteBuffer.wrap(bytes);
-            while (write.hasRemaining()) channel.write(write);
-            channel.force(true);
+            try (FileChannel channel = FileChannel.open(journalFile,
+                    StandardOpenOption.CREATE, StandardOpenOption.WRITE, StandardOpenOption.APPEND)) {
+                ByteBuffer write = ByteBuffer.wrap(bytes);
+                while (write.hasRemaining()) channel.write(write);
+                channel.force(true);
+            }
         }
     }
 
@@ -81,14 +80,9 @@ public class AccountDeletionJournal {
         Instant cutoff = Instant.now().minus(RETENTION_DAYS, ChronoUnit.DAYS);
         List<JournalEntry> retained = new ArrayList<>();
         int removed = 0;
-        try (FileChannel channel = FileChannel.open(journalFile,
-                StandardOpenOption.READ, StandardOpenOption.WRITE);
-             FileLock ignored = channel.lock()) {
-            channel.position(0);
-            byte[] existing = new byte[(int) channel.size()];
-            ByteBuffer read = ByteBuffer.wrap(existing);
-            while (read.hasRemaining() && channel.read(read) >= 0) { /* read complete journal */ }
-            for (String line : new String(existing, StandardCharsets.UTF_8).split("\\R")) {
+        try (FileChannel lockChannel = FileChannel.open(lockFile, StandardOpenOption.CREATE, StandardOpenOption.WRITE);
+             FileLock ignored = lockChannel.lock()) {
+            for (String line : Files.readAllLines(journalFile, StandardCharsets.UTF_8)) {
                 if (line.isBlank()) continue;
                 JournalEntry entry = mapper.readValue(line, JournalEntry.class);
                 if (Instant.parse(entry.recordedAt()).isAfter(cutoff)) retained.add(entry);
