@@ -60,7 +60,13 @@ public class AccountDeletionJournal {
                 for (String line : Files.readAllLines(journalFile, StandardCharsets.UTF_8)) {
                     if (line.isBlank()) continue;
                     JournalEntry entry = mapper.readValue(line, JournalEntry.class);
-                    if (operationId.toString().equals(entry.operationId())) return;
+                    if (entry.schemaVersion() != SCHEMA_VERSION) throw new IOException("Unsupported deletion journal schema version.");
+                    if (operationId.toString().equals(entry.operationId())) {
+                        if (!ownerId.toString().equals(entry.ownerId())) {
+                            throw new IOException("Deletion journal operation ID is already bound to another owner.");
+                        }
+                        return;
+                    }
                 }
             }
             JournalEntry entry = new JournalEntry(SCHEMA_VERSION, operationId.toString(),
@@ -85,6 +91,9 @@ public class AccountDeletionJournal {
             for (String line : Files.readAllLines(journalFile, StandardCharsets.UTF_8)) {
                 if (line.isBlank()) continue;
                 JournalEntry entry = mapper.readValue(line, JournalEntry.class);
+                if (entry.schemaVersion() != SCHEMA_VERSION) throw new IOException("Unsupported deletion journal schema version.");
+                UUID.fromString(entry.operationId());
+                UUID.fromString(entry.ownerId());
                 if (Instant.parse(entry.recordedAt()).isAfter(cutoff)) retained.add(entry);
                 else removed++;
             }
@@ -92,7 +101,7 @@ public class AccountDeletionJournal {
             try {
                 StringBuilder output = new StringBuilder();
                 for (JournalEntry entry : retained) output.append(mapper.writeValueAsString(entry)).append(System.lineSeparator());
-                Files.writeString(temp, output, StandardCharsets.UTF_8, StandardOpenOption.TRUNCATE_EXISTING);
+                Files.writeString(temp, output, StandardCharsets.UTF_8, StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.WRITE);
                 try { Files.setPosixFilePermissions(temp, PosixFilePermissions.fromString("rw-------")); }
                 catch (UnsupportedOperationException ignoredPermission) { /* Windows ACLs inherit from the private directory. */ }
                 try (FileChannel outputChannel = FileChannel.open(temp, StandardOpenOption.WRITE)) {
