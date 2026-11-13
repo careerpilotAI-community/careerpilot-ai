@@ -21,4 +21,4 @@ CREATE TABLE resume_upload_cleanup_jobs (
 
 CREATE INDEX ix_resume_upload_cleanup_due
     ON resume_upload_cleanup_jobs (expires_at, next_attempt_at, created_at)
-    WHERE job_status IN ('PENDING', 'PROCESSING');
+    WHERE job_status IN ('IN_PROGRESS', 'PENDING', 'PROCESSING');
