@@ -21,10 +21,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
-/**
- * Sidecar deletion journal kept outside PostgreSQL backups and document storage.
- * Entries contain opaque IDs only and are replayed before a restored instance is exposed.
- */
+/** Sidecar deletion journal kept outside PostgreSQL backups and document storage. */
 @Component
 public class AccountDeletionJournal {
     private static final int SCHEMA_VERSION = 1;
@@ -53,24 +50,38 @@ public class AccountDeletionJournal {
     }
 
     public synchronized void record(UUID operationId, UUID ownerId) throws IOException {
-        if (operationId == null || ownerId == null) throw new IllegalArgumentException("Deletion journal IDs are required.");
-        try (FileChannel lockChannel = FileChannel.open(lockFile, StandardOpenOption.CREATE, StandardOpenOption.WRITE);
+        recordEntry(new JournalEntry(SCHEMA_VERSION, operationId.toString(), ownerId.toString(),
+                "ACCOUNT", null, Instant.now().toString()));
+    }
+
+    public synchronized void recordAssetDeletion(UUID operationId, UUID ownerId, UUID assetId) throws IOException {
+        if (assetId == null) throw new IllegalArgumentException("Asset ID is required.");
+        recordEntry(new JournalEntry(SCHEMA_VERSION, operationId.toString(), ownerId.toString(),
+                "ASSET", assetId.toString(), Instant.now().toString()));
+    }
+
+    private void recordEntry(JournalEntry entry) throws IOException {
+        UUID.fromString(entry.operationId());
+        UUID.fromString(entry.ownerId());
+        if (entry.assetId() != null) UUID.fromString(entry.assetId());
+        try (FileChannel lockChannel = FileChannel.open(lockFile,
+                StandardOpenOption.CREATE, StandardOpenOption.WRITE);
              FileLock ignored = lockChannel.lock()) {
             if (Files.exists(journalFile, LinkOption.NOFOLLOW_LINKS)) {
                 for (String line : Files.readAllLines(journalFile, StandardCharsets.UTF_8)) {
                     if (line.isBlank()) continue;
-                    JournalEntry entry = mapper.readValue(line, JournalEntry.class);
-                    if (entry.schemaVersion() != SCHEMA_VERSION) throw new IOException("Unsupported deletion journal schema version.");
-                    if (operationId.toString().equals(entry.operationId())) {
-                        if (!ownerId.toString().equals(entry.ownerId())) {
-                            throw new IOException("Deletion journal operation ID is already bound to another owner.");
+                    JournalEntry existing = mapper.readValue(line, JournalEntry.class);
+                    validate(existing);
+                    if (entry.operationId().equals(existing.operationId())) {
+                        if (!entry.ownerId().equals(existing.ownerId())
+                                || !entry.deletionType().equals(existing.deletionType())
+                                || !java.util.Objects.equals(entry.assetId(), existing.assetId())) {
+                            throw new IOException("Deletion journal operation ID is already bound to another deletion.");
                         }
                         return;
                     }
                 }
             }
-            JournalEntry entry = new JournalEntry(SCHEMA_VERSION, operationId.toString(),
-                    ownerId.toString(), Instant.now().toString());
             byte[] bytes = (mapper.writeValueAsString(entry) + System.lineSeparator()).getBytes(StandardCharsets.UTF_8);
             try (FileChannel channel = FileChannel.open(journalFile,
                     StandardOpenOption.CREATE, StandardOpenOption.WRITE, StandardOpenOption.APPEND)) {
@@ -86,14 +97,13 @@ public class AccountDeletionJournal {
         Instant cutoff = Instant.now().minus(RETENTION_DAYS, ChronoUnit.DAYS);
         List<JournalEntry> retained = new ArrayList<>();
         int removed = 0;
-        try (FileChannel lockChannel = FileChannel.open(lockFile, StandardOpenOption.CREATE, StandardOpenOption.WRITE);
+        try (FileChannel lockChannel = FileChannel.open(lockFile,
+                StandardOpenOption.CREATE, StandardOpenOption.WRITE);
              FileLock ignored = lockChannel.lock()) {
             for (String line : Files.readAllLines(journalFile, StandardCharsets.UTF_8)) {
                 if (line.isBlank()) continue;
                 JournalEntry entry = mapper.readValue(line, JournalEntry.class);
-                if (entry.schemaVersion() != SCHEMA_VERSION) throw new IOException("Unsupported deletion journal schema version.");
-                UUID.fromString(entry.operationId());
-                UUID.fromString(entry.ownerId());
+                validate(entry);
                 if (Instant.parse(entry.recordedAt()).isAfter(cutoff)) retained.add(entry);
                 else removed++;
             }
@@ -101,7 +111,8 @@ public class AccountDeletionJournal {
             try {
                 StringBuilder output = new StringBuilder();
                 for (JournalEntry entry : retained) output.append(mapper.writeValueAsString(entry)).append(System.lineSeparator());
-                Files.writeString(temp, output, StandardCharsets.UTF_8, StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.WRITE);
+                Files.writeString(temp, output, StandardCharsets.UTF_8,
+                        StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.WRITE);
                 try { Files.setPosixFilePermissions(temp, PosixFilePermissions.fromString("rw-------")); }
                 catch (UnsupportedOperationException ignoredPermission) { /* Windows ACLs inherit from the private directory. */ }
                 try (FileChannel outputChannel = FileChannel.open(temp, StandardOpenOption.WRITE)) {
@@ -115,5 +126,23 @@ public class AccountDeletionJournal {
         return removed;
     }
 
-    public record JournalEntry(int schemaVersion, String operationId, String ownerId, String recordedAt) {}
+    private static void validate(JournalEntry entry) throws IOException {
+        if (entry.schemaVersion() != SCHEMA_VERSION) throw new IOException("Unsupported deletion journal schema version.");
+        UUID.fromString(entry.operationId());
+        UUID.fromString(entry.ownerId());
+        if (!"ACCOUNT".equals(entry.deletionType()) && !"ASSET".equals(entry.deletionType())) {
+            throw new IOException("Unsupported deletion journal event type.");
+        }
+        if ("ACCOUNT".equals(entry.deletionType()) && entry.assetId() != null) {
+            throw new IOException("Account tombstone must not contain an asset ID.");
+        }
+        if ("ASSET".equals(entry.deletionType()) && entry.assetId() == null) {
+            throw new IOException("Asset tombstone requires an asset ID.");
+        }
+        if (entry.assetId() != null) UUID.fromString(entry.assetId());
+        Instant.parse(entry.recordedAt());
+    }
+
+    public record JournalEntry(int schemaVersion, String operationId, String ownerId,
+            String deletionType, String assetId, String recordedAt) {}
 }
