@@ -356,4 +356,32 @@ class CareerPilotApiApplicationTests {
         mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete("/api/resumes/{id}",unknown).with(csrf()))
             .andExpect(status().isUnauthorized());
     }
+
+    @Test
+    void deletionWorkerRemovesBinaryVerifiesAbsenceAndScrubsAssetMetadata() throws Exception {
+        when(malwareScanner.scan(any(InputStream.class))).thenReturn(new MalwareScanner.ScanResult(true, "CLEAN"));
+        UserEntity owner=userRepository.saveAndFlush(new UserEntity("resume-worker-" + UUID.randomUUID() + "@example.com","test-only-password-hash"));
+        byte[] pdf;
+        try(PDDocument document=new PDDocument(); ByteArrayOutputStream output=new ByteArrayOutputStream()) {
+            document.addPage(new PDPage()); document.save(output); pdf=output.toByteArray();
+        }
+        var upload=mockMvc.perform(multipart("/api/resumes").file(new MockMultipartFile("file","worker-test.pdf","application/pdf",pdf))
+                .param("kind","ORIGINAL").with(user(owner.getEmail())).with(csrf()))
+            .andExpect(status().isCreated()).andReturn();
+        UUID id=UUID.fromString(com.jayway.jsonpath.JsonPath.read(upload.getResponse().getContentAsString(),"$.id"));
+        String key=jdbcTemplate.queryForObject("SELECT storage_key FROM resume_assets WHERE id=?",String.class,id);
+        assertThat(documentStorage.exists(key)).isTrue();
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete("/api/resumes/{id}",id)
+                .with(user(owner.getEmail())).with(csrf()))
+            .andExpect(status().isAccepted());
+
+        assertThat(resumeDeletionWorker.processNextJob()).isTrue();
+        assertThat(documentStorage.exists(key)).isFalse();
+        assertThat(jdbcTemplate.queryForObject("SELECT status FROM resume_assets WHERE id=?",String.class,id)).isEqualTo("DELETED");
+        assertThat(jdbcTemplate.queryForObject("SELECT storage_key FROM resume_assets WHERE id=?",String.class,id)).isNull();
+        assertThat(jdbcTemplate.queryForObject("SELECT original_filename FROM resume_assets WHERE id=?",String.class,id)).isNull();
+        assertThat(jdbcTemplate.queryForObject("SELECT job_status FROM resume_deletion_jobs WHERE asset_id=?",String.class,id)).isEqualTo("COMPLETED");
+        assertThat(jdbcTemplate.queryForObject("SELECT completed_at FROM resume_deletion_jobs WHERE asset_id=?",java.sql.Timestamp.class,id)).isNotNull();
+    }
 }
