@@ -1,6 +1,6 @@
 # Branch 32 — Resume Retention, Deletion & Security Policy Decisions
 
-**Status:** Documentation-only policy decision record; no runtime behavior or security control is implemented by this milestone.
+**Status:** Owner-approved policy baseline; documentation-only. No runtime behavior or security control is implemented by this milestone.
 **Baseline:** Branch 31 merge `cc562edf954ddd7df2f9c58091bd0974d959207a`.
 **Target:** Local-first Windows deployment; hosted deployment remains separately gated.
 
@@ -92,7 +92,7 @@ Recommended default is no user-facing grace period after confirmation. A short o
 
 Account deletion must be owner-scoped and idempotent. Do not physically remove the account row before durable deletion work for its dependent data is recorded. Define foreign-key ordering and anonymization behavior before writing migrations.
 
-**Required owner decision:** confirm whether application/job history is deleted or anonymized, whether a confirmation step is required, whether any grace period is offered, and what lawful audit exceptions apply.
+**Approved owner decision (Branch 33):** application/job history is deleted; explicit confirmation is required; there is no user-facing grace period; only narrowly scoped, documented lawful audit exceptions may remain.
 
 ## 5. Backup retention and deletion propagation
 
@@ -117,7 +117,7 @@ Account deletion must be owner-scoped and idempotent. Do not physically remove t
 
 If the deletion ledger itself is restored from an older recovery point, replay must also consult a newer protected deletion journal or equivalent source. A backup restore must never silently resurrect deleted accounts/assets.
 
-**Required owner decision:** approve or replace the proposed 7-daily/4-weekly schedule and set a concrete maximum backup-retention/erasure window. The schedule is a proposal, not a currently configured backup policy.
+**Approved owner decision (Branch 33):** retain 7 daily and 4 weekly recovery points, with a maximum 28-day backup-erasure window. This is approved policy, not a currently configured or verified backup control.
 
 ## 6. Encryption-at-rest decision
 
@@ -131,9 +131,9 @@ This choice protects powered-off/lost-device scenarios; it does not protect file
 
 Before hosted deployment, require provider-side encryption at rest for private object storage and database volumes, encrypted backups, TLS in transit, least-privilege service identities, and a documented key custody/rotation/recovery model. Application-level envelope encryption may be evaluated later if the threat model requires per-object cryptographic erasure or stronger separation.
 
-### Required decision
+### Approved decision (Branch 33)
 
-Approve OS-managed volume encryption as the local default, or explicitly select application-level envelope encryption. Do not claim encryption readiness until the actual Windows volume and backup destination are verified as encrypted and recovery keys are safely escrowed outside the encrypted device.
+OS-managed Windows volume encryption is the local default for both application-data and backup volumes. Do not claim encryption readiness until the actual Windows volumes are verified as encrypted and recovery keys are safely escrowed outside the encrypted device.
 
 ## 7. Key-management defaults
 
@@ -192,18 +192,29 @@ Implementation must be a separate explicitly approved milestone. At minimum it m
 ### Acceptance gate
 Do not enable real-resume use until the approved retention policy is implemented, deletion and account-deletion tests pass, Windows ACLs are verified, encrypted storage and encrypted backups are verified, and a coordinated isolated restore drill proves deletion replay and checksum/ownership integrity.
 
-## 10. Decisions required before implementation
+## 10. Owner-approved decisions (Branch 33)
 
-The project owner must explicitly approve or revise:
-1. Active original/tailored assets retained until user deletion/account deletion.
-2. 24-hour maximum retention for rejected and abandoned quarantine uploads.
-3. No grace period for individual asset deletion; immediate access revocation.
-4. Account deletion semantics for application history (delete vs irreversible anonymization) and any confirmation/grace period.
-5. Proposed backup schedule (7 daily + 4 weekly) and maximum backup-erasure window.
-6. OS-managed Windows volume encryption as local default versus application-level envelope encryption.
-7. Minimal security-audit retention duration and any legal-hold exceptions.
+The project owner approved the following seven defaults for implementation planning on 2026-11-13:
 
-Until these are decided, they remain proposals and must not be implemented as assumed policy.
+| # | Approved policy | Implementation interpretation |
+|---|---|---|
+| 1 | Active original and tailored assets are retained until user deletion or account deletion. | Tailored assets can be deleted independently. Parent deletion does not silently cascade; related assets require explicit selection. No inactivity expiry. |
+| 2 | Rejected/malware-positive and failed/abandoned uploads are purged within 24 hours of terminal verdict/abandonment. | Items remain inaccessible while awaiting purge; cleanup is bounded, retryable, and leaves only minimal non-content failure evidence. |
+| 3 | Individual asset deletion has no grace period. | Access is revoked immediately by durable tombstone; physical deletion is asynchronous and idempotent. |
+| 4 | Account deletion requires explicit confirmation, has no user-facing grace period, and deletes application/job history. | Authentication/session access is revoked immediately. Delete attributable profile, tracker, resume, derived AI, temporary, and quarantine data; preserve only narrowly required lawful audit evidence. Internal retries do not restore access. |
+| 5 | Backups retain 7 daily and 4 weekly recovery points, with a maximum 28-day backup-erasure window. | Coordinated database+binary recovery sets; deleted data may persist in an offline recovery point only within the approved 28-day maximum. Restore must replay a newer protected deletion journal before serving traffic. |
+| 6 | OS-managed Windows volume encryption is the local default. | Encrypt both the dedicated application-data volume and backup destination volume (e.g. BitLocker where supported); recovery keys must be escrowed independently. Application-level envelope encryption is not required for the initial local profile. |
+| 7 | Minimal metadata-only security audit events are retained for 12 months. | No document bytes, extracted text, credentials, session IDs, raw storage keys, or unnecessary personal data. Legal holds are exceptions only with documented lawful basis, strict scope/access controls, review, and release. |
+
+These approvals establish product policy, not implementation or readiness. Engineering must still verify feasibility, platform support, applicable legal requirements, and all acceptance criteria before enabling the relevant behavior. If legal/privacy review requires a narrower rule, pause the affected implementation and return the conflict for owner review; do not silently change the approved promise.
+
+### Explicit boundaries
+
+- Individual asset deletion affects only the selected asset unless the user explicitly selects related assets.
+- Account deletion is broader and removes application/job history, resume data, attributable derived AI artifacts, temporary files, and quarantine items, subject only to documented lawful exceptions.
+- The 28-day backup window is a maximum, not a promise of immediate physical erasure from every offline backup. Restore-time deletion replay is mandatory.
+- BitLocker/OS encryption protects powered-off/lost-device scenarios; it does not replace NTFS ACLs, application authorization, malware controls, or secure session handling.
+- The 12-month audit record is metadata-only. Legal holds must never be a generic indefinite-retention mechanism.
 
 ## 11. Branch 32 exit criteria
 
@@ -216,3 +227,24 @@ Until these are decided, they remain proposals and must not be implemented as as
 - Implementation requirements and testable acceptance criteria documented.
 - Roadmap and storage architecture reconciled.
 - No application code, migrations, dependencies, configuration, or runtime behavior changed.
+
+
+## 12. Branch 33 approval record and implementation sequencing
+
+**Approval date:** 2026-11-13  
+**Approval:** Project owner approved all seven recommended defaults without modification.  
+**Scope:** Policy and roadmap documentation only; this approval does not authorize application-code changes in this branch.
+
+### Proposed implementation milestones
+
+| Milestone | Scope | Required exit evidence |
+|---|---|---|
+| Branch 34 — Asset deletion foundation | Lifecycle schema/tombstones, owner-scoped delete API, durable cleanup outbox/job model, immediate access denial | Migration review; authorization/CSRF tests; transaction/crash-boundary and idempotency tests |
+| Branch 35 — Retention and cleanup workers | 24-hour rejected/abandoned cleanup, retry/backoff, operator-safe observability, reconciliation report-only baseline | Boundary-time tests; retry/dead-letter tests; no-content logging verification |
+| Branch 36 — Account deletion | Confirmation UX/API, immediate session revocation, ordered deletion/anonymization of all approved data classes | Cross-user denial tests; complete data-scope inventory; repeatable deletion tests |
+| Branch 37 — Backup, restore, and deletion propagation | 7 daily + 4 weekly policy, 28-day expiry, coordinated backup sets, protected deletion journal, restore replay | Isolated restore drill proving no deleted asset/account resurrection; integrity/ownership checks |
+| Branch 38 — Local encryption and key recovery | Verify encrypted application-data and backup volumes; recovery-key escrow and recovery procedure | Target-host evidence and successful controlled recovery validation |
+| Branch 39 — Security and privacy verification | Windows ACL verification, scanner fail-closed checks, privacy-safe logs, lifecycle threat review | Security regression suite and documented operational evidence |
+| Branch 40 — Integrated local readiness validation | End-to-end synthetic-data workflows and all operational gates | Separate sign-offs for synthetic-data testing and real-resume use; hosted deployment remains separately gated |
+
+The sequencing is a planning baseline and may be refined after dependency inspection in each branch. Each milestone requires its own focused branch/PR and approval before implementation. No branch may bypass the owner-approved policy or silently broaden data retention.
