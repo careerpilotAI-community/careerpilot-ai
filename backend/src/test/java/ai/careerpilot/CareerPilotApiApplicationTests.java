@@ -359,6 +359,9 @@ class CareerPilotApiApplicationTests {
 
     @Test
     void deletionWorkerRemovesBinaryVerifiesAbsenceAndScrubsAssetMetadata() throws Exception {
+        // Other integration tests may leave older durable jobs in the shared Testcontainers database.
+        // Keep this test focused on the job it creates below.
+        jdbcTemplate.update("DELETE FROM resume_deletion_jobs");
         when(malwareScanner.scan(any(InputStream.class))).thenReturn(new MalwareScanner.ScanResult(true, "CLEAN"));
         UserEntity owner=userRepository.saveAndFlush(new UserEntity("resume-worker-" + UUID.randomUUID() + "@example.com","test-only-password-hash"));
         byte[] pdf;
