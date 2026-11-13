@@ -526,6 +526,17 @@ class CareerPilotApiApplicationTests {
             "SELECT storage_key FROM resume_assets WHERE id=?", String.class, resumeId);
         assertThat(documentStorage.exists(storageKey)).isTrue();
 
+        String rejectedUploadKey = UUID.randomUUID().toString();
+        documentStorage.storeQuarantined(new java.io.ByteArrayInputStream(new byte[] {4, 5, 6}), rejectedUploadKey);
+        jdbcTemplate.update("""
+            INSERT INTO resume_upload_cleanup_jobs
+                (operation_id, owner_id, storage_key, job_status, reason_code,
+                 created_at, expires_at, attempt_count, next_attempt_at)
+            VALUES (?, ?, ?, 'PENDING', 'UPLOAD_FAILED',
+                    CURRENT_TIMESTAMP, CURRENT_TIMESTAMP + INTERVAL '24 hours', 0, CURRENT_TIMESTAMP)
+            """, UUID.randomUUID(), owner.getId(), rejectedUploadKey);
+        assertThat(documentStorage.exists(rejectedUploadKey)).isTrue();
+
         JobEntity job = jobRepository.saveAndFlush(new JobEntity(owner.getId(), "Java Engineer", "Example Ltd"));
         jdbcTemplate.update("""
             INSERT INTO applications (id, user_id, job_id, status)
@@ -573,6 +584,7 @@ class CareerPilotApiApplicationTests {
 
         assertThat(accountDeletionWorker.processNextJob()).isTrue();
         assertThat(documentStorage.exists(storageKey)).isFalse();
+        assertThat(documentStorage.exists(rejectedUploadKey)).isFalse();
         assertThat(userRepository.findByEmail(email)).isEmpty();
         assertThat(jdbcTemplate.queryForObject(
             "SELECT COUNT(*) FROM jobs WHERE user_id=?", Integer.class, owner.getId())).isZero();
