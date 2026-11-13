@@ -277,6 +277,11 @@ class CareerPilotApiApplicationTests {
                 .with(user(owner.getEmail())).with(csrf()))
             .andExpect(status().isCreated()).andReturn();
         UUID id=UUID.fromString(com.jayway.jsonpath.JsonPath.read(result.getResponse().getContentAsString(),"$.id"));
+        String successfulStorageKey = jdbcTemplate.queryForObject(
+            "SELECT storage_key FROM resume_assets WHERE id=?", String.class, id);
+        assertThat(jdbcTemplate.queryForObject(
+            "SELECT job_status FROM resume_upload_cleanup_jobs WHERE storage_key=?",
+            String.class, successfulStorageKey)).isEqualTo("COMPLETED");
         mockMvc.perform(get("/api/resumes/{id}/download",id).with(user(owner.getEmail())))
             .andExpect(status().isOk())
             .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.header().string("X-Content-Type-Options","nosniff"));
