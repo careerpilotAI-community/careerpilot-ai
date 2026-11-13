@@ -278,3 +278,30 @@ Branch 36 adds a durable upload-attempt cleanup ledger before any upload bytes a
 - The ledger stores opaque storage keys and bounded reason/error codes only; it does not store filenames, file contents, owner email, or extracted text.
 
 The 24-hour period is a maximum retention window for rejected/failed/abandoned upload bytes. Successful AVAILABLE assets are not subject to this sweep. This does not implement account deletion, backup deletion propagation, storage reconciliation, or operator dead-letter tooling. The implementation must still be verified by CI and operational testing before use with real personal resumes.
+
+
+## 11. Local Windows encryption and key custody (Branch 39)
+
+**Approved boundary:** the initial local profile uses OS-managed full-volume encryption (BitLocker where supported) for the volume containing the application-data root and for the backup destination volume. The application filesystem adapter remains unchanged. Application-level envelope encryption and application-generated data keys are not required for this profile and must not be introduced without a separate threat-model and owner decision.
+
+### Coverage and verification
+
+- Verify BitLocker protection is fully enabled (not merely encryption in progress) on every volume containing the active document root, the backup root, and the independent deletion-journal directory.
+- The journal must remain a separate path from both document storage and backup storage. It does not have to occupy a separate physical volume; whichever volume contains it must be protected.
+- A successful backup-script BitLocker check is point-in-time operational evidence only. It does not prove that a recovery password is escrowed, accessible, current, or recoverable.
+- Record non-secret inventory data only: volume label/identifier, mount point, purpose, BitLocker protection status, recovery-protector identifier, verification date, and responsible operator. Never put a recovery password, key file, or key package in Git, PostgreSQL, document storage, application logs, or the same unencrypted device.
+- Keep the recovery material independently accessible if the encrypted computer is lost. Restrict access to the owner and explicitly authorized recovery administrators.
+
+### Recovery-key lifecycle
+
+Windows/BitLocker creates and manages recovery protectors. CareerPilot must not generate its own substitute key or persist BitLocker secrets. Escrow and recovery validation are operator responsibilities. A recovery-password protector replacement is not a claim that the volume's data-encryption key has been rotated or that data has been re-encrypted.
+
+After suspected exposure, device ownership change, or a relevant incident: add a replacement recovery-password protector, escrow and verify the replacement, then remove the exposed protector by its protector identifier. Never remove the only verified recovery protector. Keep an independently protected recovery copy and record the rotation event without recording the secret.
+
+### NTFS boundary
+
+POSIX permission calls in the Java local adapter are best-effort only on Windows. Windows security depends on the effective NTFS DACLs inherited by the data root, quarantine/available directories, files, backup archives, and journal directory. Verify the actual owner, explicit and inherited ACEs, and access from an unrelated standard user on the target Windows host. Limit access to the backend runtime identity, SYSTEM, and authorized administrators as operationally required. Do not assume that a successful Java startup or a POSIX-permission fallback proves Windows ACL safety.
+
+### Readiness evidence
+
+This section defines controls; it does not assert that any target Windows host has been inspected. Record dated evidence for each relevant volume, escrow location/access check (never the secret itself), ACL review, and controlled recovery validation. See [Local Backup & Restore Runbook](LOCAL_BACKUP_RESTORE_RUNBOOK.md).
