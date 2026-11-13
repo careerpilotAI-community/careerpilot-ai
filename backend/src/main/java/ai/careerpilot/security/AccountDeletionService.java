@@ -1,9 +1,13 @@
 package ai.careerpilot.security;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -13,6 +17,7 @@ import java.util.UUID;
 
 @Service
 public class AccountDeletionService {
+    private static final Logger log = LoggerFactory.getLogger(AccountDeletionService.class);
     private final JdbcTemplate jdbc;
     private final PasswordEncoder passwordEncoder;
     private final AccountDeletionJournal deletionJournal;
@@ -52,14 +57,18 @@ public class AccountDeletionService {
             INSERT INTO account_deletion_jobs (operation_id, owner_id, job_status, requested_at, attempt_count)
             VALUES (?, ?, 'PENDING', CURRENT_TIMESTAMP, 0)
             """, operationId, ownerId);
-        try {
-            // Persist outside PostgreSQL before acknowledging deletion. A later restore
-            // must still see this tombstone even when its database snapshot predates it.
-            deletionJournal.record(operationId, ownerId);
-        } catch (IOException failure) {
-            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
-                    "Account deletion could not be durably recorded. Please retry.", failure);
-        }
+        // Avoid writing a false tombstone if the database transaction rolls back.
+        // The worker writes it before touching storage; backups refuse unresolved jobs.
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                try {
+                    deletionJournal.record(operationId, ownerId);
+                } catch (IOException failure) {
+                    log.error("Account deletion committed but sidecar journal write failed; backup remains blocked until worker recovery.", failure);
+                }
+            }
+        });
         // Spring Session's principal index is the normalized authenticated email.
         jdbc.update("DELETE FROM spring_session WHERE principal_name=?", email);
         return new DeletionAccepted(operationId, "DELETION_PENDING");
