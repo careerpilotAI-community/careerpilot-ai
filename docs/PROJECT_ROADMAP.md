@@ -1,7 +1,7 @@
 # CareerPilot AI — Product Roadmap
 
 **Status:** PostgreSQL persistence (Branch 26), identity/session security (Branch 27), core career tracker (Branch 28), and secure resume management (Branch 30) merged; Branch 31 lifecycle/recovery design documented  
-**Last updated:** 2026-11-12  
+**Last updated:** 2026-11-13  
 **Scope:** Product direction and delivery phases; capabilities are plans unless explicitly marked complete.
 
 ## 1. Product vision
@@ -78,7 +78,7 @@ Detailed requirements, user journeys, feature boundaries, and the conceptual dom
 | 9 — Persistence implementation | PostgreSQL 17, Flyway, Docker Compose, repository integration tests | **Completed and merged in PR #33** |
 | 10 — Identity and session security implementation | Registration, login/logout, JDBC sessions, CSRF/CORS, session expiry and authentication UI | **Completed and merged in PR #34** |
 | 11 — Core tracker | Profile, skills, saved jobs, applications, dashboard and owner isolation | **Completed and merged in PR #35; backend and frontend CI passed** |
-| 12 — Resume/document management | Secure upload, versioning, storage adapter, scanning, retention and recovery | **Branch 29 policy decisions documented; implementation remains gated by unresolved operational policies and separate Branch 30 approval** |
+| 12 — Resume/document management | Secure upload, versioning, storage adapter and scanning | **Branch 30 / PR #38 merged. Retention/deletion and recovery controls remain separate implementation milestones** |
 | 13 — Local AI assistance | Ollama integration, job matching and resume suggestions | Future milestone; requires model/hardware baseline, grounding, privacy, safety and quota decisions |
 | 14 — Integrated local MVP validation | End-to-end workflows, recovery, backup/restore and release checks | Future milestone after tracker, resume and AI slices |
 | 15 — Later deployment modes | Self-hosted and cloud deployment guides/validation | Separate operational, security, privacy and cost review |
@@ -152,6 +152,22 @@ Record material scope or architecture changes in pull requests, explain the reas
 
 ## 14. Branch 32 — resume retention, deletion, and security policy
 
-Branch 32 is a documentation-only policy milestone. See [Resume Retention, Deletion & Security Policy](architecture/storage/RESUME_RETENTION_DELETION_SECURITY_POLICY.md). It records recommended defaults and explicitly unresolved owner decisions for active/rejected asset retention, user and account deletion, backup expiry/deletion propagation, Windows volume encryption, key recovery, and implementation acceptance criteria.
+Branch 32 is a documentation-only policy milestone. See [Resume Retention, Deletion & Security Policy](architecture/storage/RESUME_RETENTION_DELETION_SECURITY_POLICY.md). It documented proposed defaults for active/rejected asset retention, user and account deletion, backup expiry/deletion propagation, Windows volume encryption, key recovery, and implementation acceptance criteria. The owner decisions were subsequently approved and recorded in Branch 33.
 
-No retention/deletion behavior, account deletion, backup automation, encryption, key management, or runtime controls are implemented by this milestone. Proposed durations and defaults are not approved policy until the project owner confirms them. The real-resume local readiness gate from Branch 31 remains closed; hosted/public deployment remains not ready.
+No retention/deletion behavior, account deletion, backup automation, encryption, key management, or runtime controls are implemented by Branch 32 or Branch 33. The real-resume local readiness gate from Branch 31 remains closed; hosted/public deployment remains not ready.
+
+## 15. Branch 33 — approved resume retention and security policy
+
+Branch 33 records the project owner's approval (2026-11-13) of all seven policy defaults in the specialist policy document:
+
+- Active original/tailored resumes remain until user/account deletion; tailored assets are independently deletable.
+- Rejected, failed, and abandoned uploads are purged within 24 hours.
+- Individual deletion has no grace period: access is revoked immediately and physical cleanup is asynchronous.
+- Account deletion requires confirmation, has no user-facing grace period, and deletes application/job history and attributable personal data, subject only to lawful audit exceptions.
+- Backups retain 7 daily and 4 weekly recovery points, with a maximum 28-day deletion propagation/backup-erasure window and mandatory restore-time deletion replay.
+- OS-managed Windows volume encryption is the local default for application data and backup volumes, with independent recovery-key escrow.
+- Minimal metadata-only security audit events are retained for 12 months; legal holds require documented lawful basis and controls.
+
+This is still a documentation-only approval milestone. It does not implement or verify any runtime control. Proposed implementation sequence: Branch 34 asset deletion foundation; Branch 35 retention/cleanup workers; Branch 36 account deletion; Branch 37 backup/restore and deletion propagation; Branch 38 local encryption/key recovery; Branch 39 security/privacy verification; Branch 40 integrated local readiness validation. Each requires its own focused PR and approval.
+
+**Readiness:** synthetic-data local testing is not yet declared ready; real personal-resume use remains NOT SAFE / not approved; hosted/public deployment remains NOT READY. The synthetic-data and real-resume gates must be assessed and reported separately.
