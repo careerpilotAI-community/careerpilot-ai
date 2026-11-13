@@ -21,19 +21,22 @@ public class ResumeDeletionWorker {
     private final TransactionTemplate transactions;
     private final DocumentStorage storage;
     private final boolean enabled;
+    private final boolean schedulingEnabled;
 
     public ResumeDeletionWorker(JdbcTemplate jdbc, TransactionTemplate transactions,
             DocumentStorage storage,
-            @Value("${app.documents.cleanup.enabled:true}") boolean enabled) {
+            @Value("${app.documents.cleanup.enabled:true}") boolean enabled,
+            @Value("${app.documents.cleanup.scheduling-enabled:true}") boolean schedulingEnabled) {
         this.jdbc = jdbc;
         this.transactions = transactions;
         this.storage = storage;
         this.enabled = enabled;
+        this.schedulingEnabled = schedulingEnabled;
     }
 
     @Scheduled(fixedDelayString = "${app.documents.cleanup.fixed-delay-ms:15000}")
     public void scheduledCleanup() {
-        if (!enabled) return;
+        if (!enabled || !schedulingEnabled) return;
         for (int i = 0; i < 10 && processNextJob(); i++) {
             // Bounded batch: yield to application requests and other scheduled work.
         }
