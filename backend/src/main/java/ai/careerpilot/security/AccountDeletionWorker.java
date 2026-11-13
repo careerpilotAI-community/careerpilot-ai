@@ -39,6 +39,7 @@ public class AccountDeletionWorker {
     @Scheduled(fixedDelayString = "${app.account-deletion.fixed-delay-ms:30000}")
     public void scheduledCleanup() {
         if (!enabled || !schedulingEnabled) return;
+        jdbc.update("DELETE FROM account_deletion_audit_events WHERE expires_at <= CURRENT_TIMESTAMP");
         for (int i = 0; i < 5 && processNextJob(); i++) {
             // Keep each scheduler tick bounded.
         }
