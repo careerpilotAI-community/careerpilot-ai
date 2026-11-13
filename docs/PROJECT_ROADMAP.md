@@ -119,8 +119,8 @@ The repository's current implementation is materially beyond the historical Bran
 - **Identity/security:** Branch 27 / PR #34 added Argon2id password hashing, local-profile registration, server-side JDBC sessions, CSRF, explicit CORS, session rotation and expiry, and authentication UI. Email verification, password recovery, rate limiting and public registration hardening remain out of scope.
 - **Core tracker:** Branch 28 / PR #35 is merged. It implements profile and skills management, owner-scoped job and application workflows, dashboard summaries, responsive React workspace integration and cross-user integration coverage. Backend Maven verification and frontend install/lint/format/tests/build passed in CI run `43177048994`.
 - **Resume management:** Branch 30 / PR #38 is merged. It implements PDF/DOCX upload, private local filesystem storage, ClamAV scanning, quotas, owner-scoped metadata/list/download, and immutable original/tailored assets. It remains a local-first implementation, not hosted-production ready.
-- **Lifecycle/recovery:** Branch 31 defines deletion, retention, reconciliation, coordinated backup/restore, encryption/key management, Windows ACL, scanner operations, and explicit local readiness gates. Branch 33 approved the policy defaults. Branch 34 adds immediate owner-scoped asset access revocation and a durable cleanup queue; physical deletion is deferred to Branch 35.
-- **Not yet implemented:** physical resume deletion/retention workers, account deletion, storage reconciliation, backup/restore automation and restore drills, encryption/key management, Ollama integration, AI job matching/suggestions, and integrated local release validation.
+- **Lifecycle/recovery:** Branch 31 defines deletion, retention, reconciliation, coordinated backup/restore, encryption/key management, Windows ACL, scanner operations, and explicit local readiness gates. Branch 33 approved the policy defaults. Branch 34 adds immediate owner-scoped asset access revocation and a durable cleanup queue. Branch 35 adds verified physical cleanup, retry/recovery, and metadata scrubbing for explicit user deletions.
+- **Not yet implemented:** rejected-upload retention scheduler, account deletion, storage reconciliation, backup/restore automation and restore drills, encryption/key management, Ollama integration, AI job matching/suggestions, and integrated local release validation.
 
 The V1 database constraint defines application statuses as `SAVED`, `PREPARING`, `APPLIED`, `INTERVIEWING`, `OFFER`, `REJECTED`, `WITHDRAWN`, and `CLOSED`; application APIs and UI must use this exact vocabulary. The schema currently supports one current application per user/job; re-application history remains deferred.
 
@@ -182,3 +182,15 @@ Branch 34 implements the first narrow runtime slice of the owner-approved deleti
 - List and download endpoints immediately stop exposing a DELETING asset.
 
 **Important boundary:** Branch 34 does not delete the filesystem binary. The cleanup worker, retry/backoff, finalization and status monitoring are Branch 35. A PENDING job is not proof of physical deletion. Account deletion, retention scheduling, backup propagation and encryption remain future milestones. Real personal-resume use remains NOT SAFE; hosted/public deployment remains NOT READY.
+
+
+## 17. Branch 35 — verified physical resume deletion
+
+Branch 35 implements the durable cleanup worker for explicit individual resume deletion:
+- Claims due PENDING jobs using row-level locking; stale PROCESSING claims can be recovered after five minutes.
+- Removes both quarantine and available binaries idempotently, then independently verifies storage absence.
+- Finalizes only after absence verification: asset state becomes DELETED, document-identifying metadata is scrubbed, and the durable job becomes COMPLETED.
+- Retries failures with bounded exponential backoff; after eight attempts jobs enter DEAD_LETTER and are not represented as successful deletion.
+- Adds PostgreSQL-backed integration coverage for physical removal, absence verification, metadata scrubbing, and job completion.
+
+The worker does not implement the approved 24-hour rejected/abandoned-upload purge, account deletion, backup propagation/replay, storage reconciliation, or operator dead-letter tooling. A DEAD_LETTER item remains unresolved and requires investigation. This milestone does not close the real-personal-resume or hosted-deployment readiness gates.

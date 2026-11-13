@@ -2,6 +2,8 @@ package ai.careerpilot;
 
 import ai.careerpilot.persistence.entity.JobEntity;
 import ai.careerpilot.document.MalwareScanner;
+import ai.careerpilot.document.DocumentStorage;
+import ai.careerpilot.document.ResumeDeletionWorker;
 import ai.careerpilot.persistence.entity.UserEntity;
 import ai.careerpilot.persistence.repository.JobRepository;
 import ai.careerpilot.persistence.repository.UserRepository;
@@ -40,7 +42,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@SpringBootTest(properties = "app.registration.enabled=true")
+@SpringBootTest(properties = {"app.registration.enabled=true", "app.documents.cleanup.scheduling-enabled=false"})
 @AutoConfigureMockMvc
 @Testcontainers
 class CareerPilotApiApplicationTests {
@@ -71,6 +73,12 @@ class CareerPilotApiApplicationTests {
     @Autowired
     private MockMvc mockMvc;
 
+    @Autowired
+    private ResumeDeletionWorker resumeDeletionWorker;
+
+    @Autowired
+    private DocumentStorage documentStorage;
+
     @MockBean
     private MalwareScanner malwareScanner;
 
@@ -78,7 +86,7 @@ class CareerPilotApiApplicationTests {
     void contextLoadsAfterFreshFlywayMigration() {
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT version FROM flyway_schema_history WHERE success = true ORDER BY installed_rank DESC LIMIT 1",
-                String.class)).isEqualTo("4");
+                String.class)).isEqualTo("5");
     }
 
 
@@ -347,5 +355,38 @@ class CareerPilotApiApplicationTests {
             .andExpect(status().isForbidden());
         mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete("/api/resumes/{id}",unknown).with(csrf()))
             .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void deletionWorkerRemovesBinaryVerifiesAbsenceAndScrubsAssetMetadata() throws Exception {
+        // Other integration tests may leave older durable jobs in the shared Testcontainers database.
+        // Keep this test focused on the job it creates below.
+        jdbcTemplate.update("DELETE FROM resume_deletion_jobs");
+        when(malwareScanner.scan(any(InputStream.class))).thenReturn(new MalwareScanner.ScanResult(true, "CLEAN"));
+        UserEntity owner=userRepository.saveAndFlush(new UserEntity("resume-worker-" + UUID.randomUUID() + "@example.com","test-only-password-hash"));
+        byte[] pdf;
+        try(PDDocument document=new PDDocument(); ByteArrayOutputStream output=new ByteArrayOutputStream()) {
+            document.addPage(new PDPage()); document.save(output); pdf=output.toByteArray();
+        }
+        var upload=mockMvc.perform(multipart("/api/resumes").file(new MockMultipartFile("file","worker-test.pdf","application/pdf",pdf))
+                .param("kind","ORIGINAL").with(user(owner.getEmail())).with(csrf()))
+            .andExpect(status().isCreated()).andReturn();
+        UUID id=UUID.fromString(com.jayway.jsonpath.JsonPath.read(upload.getResponse().getContentAsString(),"$.id"));
+        String key=jdbcTemplate.queryForObject("SELECT storage_key FROM resume_assets WHERE id=?",String.class,id);
+        assertThat(documentStorage.exists(key)).isTrue();
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete("/api/resumes/{id}",id)
+                .with(user(owner.getEmail())).with(csrf()))
+            .andExpect(status().isAccepted());
+
+        assertThat(resumeDeletionWorker.processNextJob()).isTrue();
+        var jobState = jdbcTemplate.queryForMap("SELECT job_status, last_error_code FROM resume_deletion_jobs WHERE asset_id=?", id);
+        assertThat(jobState.get("job_status")).as("deletion worker job state; error code: %s", jobState.get("last_error_code")).isEqualTo("COMPLETED");
+        assertThat(documentStorage.exists(key)).isFalse();
+        assertThat(jdbcTemplate.queryForObject("SELECT status FROM resume_assets WHERE id=?",String.class,id)).isEqualTo("DELETED");
+        assertThat(jdbcTemplate.queryForObject("SELECT storage_key FROM resume_assets WHERE id=?",String.class,id)).isNull();
+        assertThat(jdbcTemplate.queryForObject("SELECT original_filename FROM resume_assets WHERE id=?",String.class,id)).isNull();
+        assertThat(jdbcTemplate.queryForObject("SELECT job_status FROM resume_deletion_jobs WHERE asset_id=?",String.class,id)).isEqualTo("COMPLETED");
+        assertThat(jdbcTemplate.queryForObject("SELECT completed_at FROM resume_deletion_jobs WHERE asset_id=?",java.sql.Timestamp.class,id)).isNotNull();
     }
 }

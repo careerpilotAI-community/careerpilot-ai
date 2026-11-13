@@ -11,13 +11,13 @@ public class ResumeAssetEntity {
     @Id @UuidGenerator private UUID id;
     @Column(name = "user_id", nullable = false, updatable = false) private UUID userId;
     @Column(name = "asset_kind", nullable = false, updatable = false, length = 16) private String assetKind;
-    @Column(name = "original_filename", nullable = false, updatable = false, length = 255) private String originalFilename;
-    @Column(name = "media_type", nullable = false, updatable = false, length = 100) private String mediaType;
+    @Column(name = "original_filename", updatable = false, length = 255) private String originalFilename;
+    @Column(name = "media_type", updatable = false, length = 100) private String mediaType;
     @Column(name = "size_bytes", nullable = false, updatable = false) private long sizeBytes;
-    @Column(name = "checksum_sha256", nullable = false, updatable = false, length = 64) private String checksumSha256;
-    @Column(name = "storage_key", nullable = false, unique = true, updatable = false, length = 80) private String storageKey;
+    @Column(name = "checksum_sha256", updatable = false, length = 64) private String checksumSha256;
+    @Column(name = "storage_key", unique = true, updatable = false, length = 80) private String storageKey;
     @Column(nullable = false, updatable = false, length = 20) private String status;
-    @Column(name = "scanner_result", nullable = false, updatable = false, length = 32) private String scannerResult;
+    @Column(name = "scanner_result", updatable = false, length = 32) private String scannerResult;
     @Column(name = "created_at", nullable = false, updatable = false) private Instant createdAt;
     protected ResumeAssetEntity() {}
     public ResumeAssetEntity(UUID userId, String assetKind, String originalFilename, String mediaType,

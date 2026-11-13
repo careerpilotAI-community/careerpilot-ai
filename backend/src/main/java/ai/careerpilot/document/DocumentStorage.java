@@ -9,5 +9,6 @@ public interface DocumentStorage {
     void promote(String key) throws IOException;
     InputStream open(String key) throws IOException;
     void remove(String key) throws IOException;
+    boolean exists(String key) throws IOException;
     Path resolveForInternalUse(String key);
 }
