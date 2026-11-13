@@ -43,10 +43,16 @@ if ($TargetDatabase -notmatch '(?i)(restore|recovery|drill)') {
 if (Test-PathWithin $targetDocumentFull $repoRoot -or Test-PathWithin $targetJournalFull $repoRoot) {
     throw "Restore targets must be outside the Git repository."
 }
+if (Test-PathWithin $currentJournalFull $repoRoot) {
+    throw "The current deletion journal must be outside the Git repository."
+}
 if ((Test-PathWithin $targetDocumentFull $backupFull) -or (Test-PathWithin $backupFull $targetDocumentFull) -or
     (Test-PathWithin $targetJournalFull $backupFull) -or (Test-PathWithin $backupFull $targetJournalFull) -or
+    (Test-PathWithin $currentJournalFull $backupFull) -or (Test-PathWithin $currentJournalFull $targetDocumentFull) -or
+    (Test-PathWithin $targetDocumentFull $currentJournalFull) -or (Test-PathWithin $targetJournalFull $targetDocumentFull) -or
+    (Test-PathWithin $targetDocumentFull $targetJournalFull) -or
     $targetJournalFull.Equals($currentJournalFull, [StringComparison]::OrdinalIgnoreCase)) {
-    throw "Restore targets must be isolated from backup media and the live deletion journal."
+    throw "Restore targets and the current journal must be isolated from backup media, the Git repository, and each other."
 }
 $manifestPath = Join-Path $backup "backup-manifest.json"
 if (-not (Test-Path -LiteralPath $manifestPath -PathType Leaf)) { throw "Backup manifest is missing." }
