@@ -1,12 +1,15 @@
 package ai.careerpilot.security;
 
 import ai.careerpilot.document.DocumentStorage;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.support.TransactionTemplate;
 
+import java.io.IOException;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.List;
@@ -18,20 +21,23 @@ import java.util.UUID;
  */
 @Component
 public class AccountDeletionWorker {
+    private static final Logger log = LoggerFactory.getLogger(AccountDeletionWorker.class);
     private static final int MAX_ATTEMPTS = 8;
     private final JdbcTemplate jdbc;
     private final TransactionTemplate transactions;
     private final DocumentStorage storage;
+    private final AccountDeletionJournal deletionJournal;
     private final boolean enabled;
     private final boolean schedulingEnabled;
 
     public AccountDeletionWorker(JdbcTemplate jdbc, TransactionTemplate transactions,
-            DocumentStorage storage,
+            DocumentStorage storage, AccountDeletionJournal deletionJournal,
             @Value("${app.account-deletion.enabled:true}") boolean enabled,
             @Value("${app.account-deletion.scheduling-enabled:true}") boolean schedulingEnabled) {
         this.jdbc = jdbc;
         this.transactions = transactions;
         this.storage = storage;
+        this.deletionJournal = deletionJournal;
         this.enabled = enabled;
         this.schedulingEnabled = schedulingEnabled;
     }
@@ -39,6 +45,11 @@ public class AccountDeletionWorker {
     @Scheduled(fixedDelayString = "${app.account-deletion.fixed-delay-ms:30000}")
     public void scheduledCleanup() {
         if (!enabled || !schedulingEnabled) return;
+        try {
+            deletionJournal.pruneExpired();
+        } catch (IOException failure) {
+            log.error("Account deletion journal retention failed; journal entries were not pruned.", failure);
+        }
         jdbc.update("DELETE FROM account_deletion_audit_events WHERE expires_at <= CURRENT_TIMESTAMP");
         for (int i = 0; i < 5 && processNextJob(); i++) {
             // Keep each scheduler tick bounded.
@@ -50,6 +61,8 @@ public class AccountDeletionWorker {
         DeletionJob job = transactions.execute(status -> claimNext());
         if (job == null) return false;
         try {
+            // Also cover jobs created before the sidecar journal was introduced.
+            deletionJournal.record(job.operationId(), job.ownerId());
             List<String> keys = jdbc.query("""
                 SELECT storage_key FROM resume_assets
                 WHERE user_id=? AND storage_key IS NOT NULL
