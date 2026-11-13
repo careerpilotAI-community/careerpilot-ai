@@ -120,7 +120,7 @@ The repository's current implementation is materially beyond the historical Bran
 - **Core tracker:** Branch 28 / PR #35 is merged. It implements profile and skills management, owner-scoped job and application workflows, dashboard summaries, responsive React workspace integration and cross-user integration coverage. Backend Maven verification and frontend install/lint/format/tests/build passed in CI run `43177048994`.
 - **Resume management:** Branch 30 / PR #38 is merged. It implements PDF/DOCX upload, private local filesystem storage, ClamAV scanning, quotas, owner-scoped metadata/list/download, and immutable original/tailored assets. It remains a local-first implementation, not hosted-production ready.
 - **Lifecycle/recovery:** Branch 31 defines deletion, retention, reconciliation, coordinated backup/restore, encryption/key management, Windows ACL, scanner operations, and explicit local readiness gates. Branch 33 approved the policy defaults. Branch 34 adds immediate owner-scoped asset access revocation and a durable cleanup queue. Branch 35 adds verified physical cleanup, retry/recovery, and metadata scrubbing for explicit user deletions.
-- **Not yet implemented:** rejected-upload retention scheduler, account deletion, storage reconciliation, backup/restore automation and restore drills, encryption/key management, Ollama integration, AI job matching/suggestions, and integrated local release validation.
+- **Not yet implemented:** account deletion, storage reconciliation, backup/restore automation and restore drills, encryption/key management, Ollama integration, AI job matching/suggestions, and integrated local release validation. Branch 36 implements the approved 24-hour rejected/failed/abandoned-upload cleanup.
 
 The V1 database constraint defines application statuses as `SAVED`, `PREPARING`, `APPLIED`, `INTERVIEWING`, `OFFER`, `REJECTED`, `WITHDRAWN`, and `CLOSED`; application APIs and UI must use this exact vocabulary. The schema currently supports one current application per user/job; re-application history remains deferred.
 
@@ -168,7 +168,7 @@ Branch 33 records the project owner's approval (2026-11-13) of all seven policy 
 - OS-managed Windows volume encryption is the local default for application data and backup volumes, with independent recovery-key escrow.
 - Minimal metadata-only security audit events are retained for 12 months; legal holds require documented lawful basis and controls.
 
-This is still a documentation-only approval milestone. It does not implement or verify any runtime control. Proposed implementation sequence: Branch 34 asset deletion foundation; Branch 35 retention/cleanup workers; Branch 36 account deletion; Branch 37 backup/restore and deletion propagation; Branch 38 local encryption/key recovery; Branch 39 security/privacy verification; Branch 40 integrated local readiness validation. Each requires its own focused PR and approval.
+This is still a documentation-only approval milestone. It does not implement or verify any runtime control. Reconciled implementation sequence: Branch 34 individual deletion foundation; Branch 35 verified physical deletion worker; Branch 36 rejected/failed/abandoned-upload retention cleanup; Branch 37 account deletion; Branch 38 backup/restore and deletion propagation; Branch 39 local encryption/key recovery; Branch 40 security/privacy verification; Branch 41 integrated local readiness validation. Each requires its own focused PR and approval.
 
 **Readiness:** synthetic-data local testing is not yet declared ready; real personal-resume use remains NOT SAFE / not approved; hosted/public deployment remains NOT READY. The synthetic-data and real-resume gates must be assessed and reported separately.
 
@@ -194,3 +194,17 @@ Branch 35 implements the durable cleanup worker for explicit individual resume d
 - Adds PostgreSQL-backed integration coverage for physical removal, absence verification, metadata scrubbing, and job completion.
 
 The worker does not implement the approved 24-hour rejected/abandoned-upload purge, account deletion, backup propagation/replay, storage reconciliation, or operator dead-letter tooling. A DEAD_LETTER item remains unresolved and requires investigation. This milestone does not close the real-personal-resume or hosted-deployment readiness gates.
+
+
+## 18. Branch 36 — 24-hour rejected and abandoned upload retention
+
+Branch 36 implements the owner-approved retention rule for upload attempts that do not become active resume assets:
+
+- A durable cleanup record is committed before the application writes upload bytes to quarantine.
+- A successful upload marks its cleanup record COMPLETED in the same transaction that persists the AVAILABLE asset.
+- Rejected/failed attempts expire 24 hours after the terminal result; interrupted attempts expire 24 hours after their recorded start.
+- A bounded scheduled worker claims only expired records, reclaims stale PROCESSING leases, removes both quarantine and available copies, and independently verifies absence before completion.
+- Retries use bounded exponential backoff; after eight attempts a record enters DEAD_LETTER and remains an unresolved cleanup requiring operator investigation.
+- Cleanup records contain only opaque storage keys and bounded reason/error codes; they do not retain filenames or document content.
+
+**Scope boundary:** active original/tailored assets are not expired by this worker. Individual user deletion remains Branch 34/35. Account deletion, backup deletion replay, storage reconciliation, and operator dead-letter tooling remain separate milestones. This branch does not close the real-personal-resume or hosted-deployment readiness gates.
