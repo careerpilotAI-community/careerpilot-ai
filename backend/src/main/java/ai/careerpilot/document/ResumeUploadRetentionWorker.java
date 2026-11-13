@@ -99,6 +99,7 @@ public class ResumeUploadRetentionWorker {
         jdbc.update("""
             UPDATE resume_upload_cleanup_jobs
             SET job_status='COMPLETED',
+                storage_key=NULL,
                 completed_at=CURRENT_TIMESTAMP,
                 processing_started_at=NULL,
                 last_error_code=NULL
