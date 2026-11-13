@@ -238,3 +238,14 @@ Key requirements before enabling lifecycle features:
 3. **Hosted/public deployment:** not ready; requires a separate security and operational review.
 
 Do not use the local scanner-bypass profile for real resumes. Do not claim recoverability until a restore drill passes.
+
+## 14. Branch 34 — owner-initiated asset deletion foundation
+
+Branch 34 introduces the first runtime deletion boundary for individual resume assets:
+- DELETE /api/resumes/{id} derives the owner from the authenticated session and requires the existing CSRF protection.
+- A PostgreSQL row lock serializes concurrent deletion requests. The transaction changes only an AVAILABLE asset to DELETING and inserts a durable PENDING cleanup job in the same transaction.
+- The operation ID makes repeated requests idempotent; a repeated request for the same owner's DELETING asset returns the existing operation.
+- List and download paths exclude DELETING assets immediately. Cross-user and unknown asset IDs return the same not-found response.
+- The binary is not removed in this milestone. A later worker milestone consumes the durable job and performs bounded, retryable physical cleanup. Do not report deletion as physically complete until that worker verifies absence.
+
+The schema change is additive (Flyway V4); existing V1–V3 migrations are unchanged. No account-deletion, retention scheduler, backup, encryption, or cleanup-worker behavior is included.
