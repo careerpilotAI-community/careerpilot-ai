@@ -1,6 +1,6 @@
 # CareerPilot AI — File Storage Architecture
 
-**Status:** Branch 29 decisions approved and documented; documentation only. No upload, download, scanner, storage adapter, bucket, or filesystem implementation is created by this milestone.  
+**Status:** Architecture baseline; runtime upload, scanning, private local storage, individual deletion and 24-hour upload-retention cleanup are implemented in later branches. Hosted and real-resume readiness gates remain open.  
 **Last updated:** 2026-11-12  
 **Related:** [Target Architecture](../../ARCHITECTURE.md) · [Database Architecture](../database/DATABASE_ARCHITECTURE.md) · [System Design Diagrams](../SYSTEM_DESIGN_DIAGRAMS.md)
 
@@ -264,3 +264,17 @@ Branch 35 consumes the durable jobs created by Branch 34:
 - The asset's owner-scoped tombstone and minimal job record remain so duplicate API calls cannot recreate deletion work. The document-identifying metadata and binary are removed after verification.
 
 **Scope boundary:** this worker processes explicit user deletion requests only. The 24-hour rejected/abandoned-upload retention sweep, account deletion, backup deletion replay, storage reconciliation, and operator tooling remain separate milestones. DEAD_LETTER is a failure state, not successful deletion.
+
+
+## 13. Branch 36 — 24-hour rejected and abandoned upload cleanup
+
+Branch 36 adds a durable upload-attempt cleanup ledger before any upload bytes are written to private storage:
+
+- Each storage attempt receives a server-generated opaque key and a minimal cleanup record committed independently before filesystem writes begin.
+- Successful asset creation and transition of its cleanup record to COMPLETED occur in the same database transaction. A rolled-back asset transaction therefore leaves a pending cleanup record rather than an untracked object.
+- Rejected and failed uploads remain inaccessible and receive a 24-hour expiry measured from the terminal verdict/failure. An interrupted upload remains tracked from its start and expires after 24 hours if it is never finalized.
+- A bounded scheduled worker claims only due jobs with PostgreSQL row locking / SKIP LOCKED, recovers stale PROCESSING leases after five minutes, removes quarantine and available copies idempotently, and verifies storage absence before marking COMPLETED.
+- Failures use bounded exponential retry (30 seconds to six hours) and enter DEAD_LETTER after eight attempts. DEAD_LETTER is unresolved cleanup, not successful deletion.
+- The ledger stores opaque storage keys and bounded reason/error codes only; it does not store filenames, file contents, owner email, or extracted text.
+
+The 24-hour period is a maximum retention window for rejected/failed/abandoned upload bytes. Successful AVAILABLE assets are not subject to this sweep. This does not implement account deletion, backup deletion propagation, storage reconciliation, or operator dead-letter tooling. The implementation must still be verified by CI and operational testing before use with real personal resumes.
