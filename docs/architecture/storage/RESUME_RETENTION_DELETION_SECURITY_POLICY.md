@@ -92,7 +92,7 @@ Recommended default is no user-facing grace period after confirmation. A short o
 
 Account deletion must be owner-scoped and idempotent. Do not physically remove the account row before durable deletion work for its dependent data is recorded. Define foreign-key ordering and anonymization behavior before writing migrations.
 
-**Required owner decision:** confirm whether application/job history is deleted or anonymized, whether a confirmation step is required, whether any grace period is offered, and what lawful audit exceptions apply.
+**Approved owner decision (Branch 33):** application/job history is deleted; explicit confirmation is required; there is no user-facing grace period; only narrowly scoped, documented lawful audit exceptions may remain.
 
 ## 5. Backup retention and deletion propagation
 
@@ -117,7 +117,7 @@ Account deletion must be owner-scoped and idempotent. Do not physically remove t
 
 If the deletion ledger itself is restored from an older recovery point, replay must also consult a newer protected deletion journal or equivalent source. A backup restore must never silently resurrect deleted accounts/assets.
 
-**Required owner decision:** approve or replace the proposed 7-daily/4-weekly schedule and set a concrete maximum backup-retention/erasure window. The schedule is a proposal, not a currently configured backup policy.
+**Approved owner decision (Branch 33):** retain 7 daily and 4 weekly recovery points, with a maximum 28-day backup-erasure window. This is approved policy, not a currently configured or verified backup control.
 
 ## 6. Encryption-at-rest decision
 
@@ -131,9 +131,9 @@ This choice protects powered-off/lost-device scenarios; it does not protect file
 
 Before hosted deployment, require provider-side encryption at rest for private object storage and database volumes, encrypted backups, TLS in transit, least-privilege service identities, and a documented key custody/rotation/recovery model. Application-level envelope encryption may be evaluated later if the threat model requires per-object cryptographic erasure or stronger separation.
 
-### Required decision
+### Approved decision (Branch 33)
 
-Approve OS-managed volume encryption as the local default, or explicitly select application-level envelope encryption. Do not claim encryption readiness until the actual Windows volume and backup destination are verified as encrypted and recovery keys are safely escrowed outside the encrypted device.
+OS-managed Windows volume encryption is the local default for both application-data and backup volumes. Do not claim encryption readiness until the actual Windows volumes are verified as encrypted and recovery keys are safely escrowed outside the encrypted device.
 
 ## 7. Key-management defaults
 
