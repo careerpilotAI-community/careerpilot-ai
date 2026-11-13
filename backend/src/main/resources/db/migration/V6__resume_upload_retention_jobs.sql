@@ -2,7 +2,7 @@
 -- Successful uploads complete this record in the same transaction as the asset row.
 CREATE TABLE resume_upload_cleanup_jobs (
     operation_id UUID PRIMARY KEY,
-    storage_key VARCHAR(80) NOT NULL UNIQUE,
+    storage_key VARCHAR(80) UNIQUE,
     job_status VARCHAR(16) NOT NULL DEFAULT 'IN_PROGRESS',
     reason_code VARCHAR(32) NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -16,7 +16,11 @@ CREATE TABLE resume_upload_cleanup_jobs (
         CHECK (job_status IN ('IN_PROGRESS', 'PENDING', 'PROCESSING', 'COMPLETED', 'DEAD_LETTER')),
     CONSTRAINT ck_resume_upload_cleanup_reason
         CHECK (reason_code IN ('UPLOAD_IN_PROGRESS', 'UPLOAD_REJECTED', 'UPLOAD_FAILED', 'UPLOAD_ACCEPTED')),
-    CONSTRAINT ck_resume_upload_cleanup_attempts CHECK (attempt_count >= 0)
+    CONSTRAINT ck_resume_upload_cleanup_attempts CHECK (attempt_count >= 0),
+    CONSTRAINT ck_resume_upload_cleanup_key_state CHECK (
+        (job_status = 'COMPLETED' AND storage_key IS NULL)
+        OR (job_status <> 'COMPLETED' AND storage_key IS NOT NULL)
+    )
 );
 
 CREATE INDEX ix_resume_upload_cleanup_due
