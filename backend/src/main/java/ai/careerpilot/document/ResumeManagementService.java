@@ -56,6 +56,7 @@ public class ResumeManagementService {
         if(current+bytes.length>userQuota || deployment+bytes.length>deploymentQuota)
             throw new ResponseStatusException(HttpStatus.INSUFFICIENT_STORAGE,"Document storage quota exceeded.");
         String key=UUID.randomUUID().toString(); String verdict;
+        createUploadCleanupAttempt(key);
         try {
             storage.storeQuarantined(new ByteArrayInputStream(bytes),key);
             MalwareScanner.ScanResult scan=scanner.scan(new ByteArrayInputStream(bytes));
@@ -64,11 +65,19 @@ public class ResumeManagementService {
             storage.promote(key);
             String checksum=HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(bytes));
             ResumeAssetEntity saved=assets.save(new ResumeAssetEntity(owner,kind,filename,valid.mediaType(),bytes.length,checksum,key,verdict));
+            jdbc.update("""
+                UPDATE resume_upload_cleanup_jobs
+                SET job_status='COMPLETED', reason_code='UPLOAD_ACCEPTED', completed_at=CURRENT_TIMESTAMP, processing_started_at=NULL
+                WHERE storage_key=? AND job_status='PENDING'
+                """, key);
             return response(saved);
         } catch(ResponseStatusException ex) {
-            removeQuietly(key); throw ex;
+            removeQuietly(key);
+            markUploadAttemptTerminal(key, ex.getStatusCode().value()==422 ? "UPLOAD_REJECTED" : "UPLOAD_FAILED");
+            throw ex;
         } catch(Exception ex) {
             removeQuietly(key);
+            markUploadAttemptTerminal(key, "UPLOAD_FAILED");
             throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,"Document validation or malware scanning is unavailable; upload was rejected.");
         }
     }
