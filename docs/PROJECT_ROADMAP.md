@@ -1,7 +1,7 @@
 # CareerPilot AI — Product Roadmap
 
 **Status:** PostgreSQL persistence (Branch 26), identity/session security (Branch 27), core career tracker (Branch 28), and secure resume management (Branch 30) merged; Branch 31 lifecycle/recovery design documented  
-**Last updated:** 2026-11-13  
+**Last updated:** 2026-11-14  
 **Scope:** Product direction and delivery phases; capabilities are plans unless explicitly marked complete.
 
 ## 1. Product vision
@@ -120,7 +120,7 @@ The repository's current implementation is materially beyond the historical Bran
 - **Core tracker:** Branch 28 / PR #35 is merged. It implements profile and skills management, owner-scoped job and application workflows, dashboard summaries, responsive React workspace integration and cross-user integration coverage. Backend Maven verification and frontend install/lint/format/tests/build passed in CI run `43177048994`.
 - **Resume management:** Branch 30 / PR #38 is merged. It implements PDF/DOCX upload, private local filesystem storage, ClamAV scanning, quotas, owner-scoped metadata/list/download, and immutable original/tailored assets. It remains a local-first implementation, not hosted-production ready.
 - **Lifecycle/recovery:** Branch 31 defines deletion, retention, reconciliation, coordinated backup/restore, encryption/key management, Windows ACL, scanner operations, and explicit local readiness gates. Branch 33 approved the policy defaults. Branch 34 adds immediate owner-scoped asset access revocation and a durable cleanup queue. Branch 35 adds verified physical cleanup, retry/recovery, and metadata scrubbing for explicit user deletions.
-- **Lifecycle/recovery after Branch 36:** Branch 37 implements confirmed account deletion with immediate session revocation and verified document cleanup. Storage reconciliation, backup/restore automation and restore drills, encryption/key management, Ollama integration, AI job matching/suggestions, and integrated local release validation remain future work. Branch 36 implements the approved 24-hour rejected/failed/abandoned-upload cleanup.
+- **Lifecycle/recovery after Branch 36:** Branch 37 implements confirmed account deletion with immediate session revocation and verified document cleanup. Branch 38 is now implementing a separate sidecar deletion journal, coordinated local backup/restore scripts, and restore-time replay. Storage reconciliation, key recovery, Ollama integration, AI job matching/suggestions, and integrated local release validation remain future work. Branch 36 implements the approved 24-hour rejected/failed/abandoned-upload cleanup.
 
 The V1 database constraint defines application statuses as `SAVED`, `PREPARING`, `APPLIED`, `INTERVIEWING`, `OFFER`, `REJECTED`, `WITHDRAWN`, and `CLOSED`; application APIs and UI must use this exact vocabulary. The schema currently supports one current application per user/job; re-application history remains deferred.
 
@@ -141,14 +141,13 @@ Operational limitations remain: no backup/restore automation, encryption-at-rest
 
 ## 10. Branch 31 — Resume lifecycle and recovery readiness
 
-Branch 31 is a documentation-only design milestone. It defines immutable asset lifecycle and tombstone deletion, retention/account-deletion decisions still requiring product/privacy approval, read-only-first storage reconciliation, coordinated PostgreSQL + filesystem backups, restore-drill acceptance, encryption/key-management requirements, Windows ACL verification, scanner observability, abuse controls, and operational runbooks. See [Resume Lifecycle & Recovery Readiness](architecture/storage/RESUME_LIFECYCLE_RECOVERY_READINESS.md).
+Branch 31 is a documentation-only design milestone. It defines immutable asset lifecycle and tombstone deletion, retention/account-deletion decisions still requiring product/privacy approval, read-only-first storage reconciliation, coordinated PostgreSQL + filesystem backups, restore-drill acceptance, encryption/key-management requirements, Windows ACL verification, scanner observability, abuse controls, and explicit local readiness gates. See [Resume Lifecycle & Recovery Readiness](architecture/storage/RESUME_LIFECYCLE_RECOVERY_READINESS.md).
 
-**Local deployment status:** synthetic-data build validation is distinct from use with real personal resumes. Real-resume local use is not yet approved until the non-local profile, live ClamAV scanning, persistent private data root, verified Windows ACLs, coordinated backup/restore drill, encryption decision, privacy-safe logging, and authorization tests are implemented and verified. Hosted/public deployment remains not ready. The project owner must be explicitly notified when a later implementation and verification milestone satisfies the local real-resume gate.
+**Local deployment status:** synthetic-data build validation is distinct from use with real personal resumes. Real-resume local use is not yet approved until the non-local profile, live ClamAV scanning, persistent private data root, verified Windows ACLs, coordinated backup/restore drill, encryption decision, privacy-safe logging, and authorization tests are implemented and verified. Hosted/public deployment remains not ready. The project owner must be explicitly notified when a later implementation and verification milestone satisfies the real-resume gate.
 
 ## 11. Change control
 
 Record material scope or architecture changes in pull requests, explain the reason, and update this roadmap and affected specialist documents. Keep approved decisions distinct from recommendations and unresolved proposals.
-
 
 ## 14. Branch 32 — resume retention, deletion, and security policy
 
@@ -165,13 +164,12 @@ Branch 33 records the project owner's approval (2026-11-13) of all seven policy 
 - Individual deletion has no grace period: access is revoked immediately and physical cleanup is asynchronous.
 - Account deletion requires confirmation, has no user-facing grace period, and deletes application/job history and attributable personal data, subject only to lawful audit exceptions.
 - Backups retain 7 daily and 4 weekly recovery points, with a maximum 28-day deletion propagation/backup-erasure window and mandatory restore-time deletion replay.
-- OS-managed Windows volume encryption is the local default for application data and backup volumes, with independent recovery-key escrow.
+- OS-managed Windows volume encryption is the local default for application-data and backup volumes, with independent recovery-key escrow.
 - Minimal metadata-only security audit events are retained for 12 months; legal holds require documented lawful basis and controls.
 
 This is still a documentation-only approval milestone. It does not implement or verify any runtime control. Reconciled implementation sequence: Branch 34 individual deletion foundation; Branch 35 verified physical deletion worker; Branch 36 rejected/failed/abandoned-upload retention cleanup; Branch 37 account deletion; Branch 38 backup/restore and deletion propagation; Branch 39 local encryption/key recovery; Branch 40 security/privacy verification; Branch 41 integrated local readiness validation. Each requires its own focused PR and approval.
 
 **Readiness:** synthetic-data local testing is not yet declared ready; real personal-resume use remains NOT SAFE / not approved; hosted/public deployment remains NOT READY. The synthetic-data and real-resume gates must be assessed and reported separately.
-
 
 ## 16. Branch 34 — resume deletion foundation
 
@@ -183,7 +181,6 @@ Branch 34 implements the first narrow runtime slice of the owner-approved deleti
 
 **Important boundary:** Branch 34 does not delete the filesystem binary. The cleanup worker, retry/backoff, finalization and status monitoring are Branch 35. A PENDING job is not proof of physical deletion. Account deletion, retention scheduling, backup propagation and encryption remain future milestones. Real personal-resume use remains NOT SAFE; hosted/public deployment remains NOT READY.
 
-
 ## 17. Branch 35 — verified physical resume deletion
 
 Branch 35 implements the durable cleanup worker for explicit individual resume deletion:
@@ -194,7 +191,6 @@ Branch 35 implements the durable cleanup worker for explicit individual resume d
 - Adds PostgreSQL-backed integration coverage for physical removal, absence verification, metadata scrubbing, and job completion.
 
 The worker does not implement the approved 24-hour rejected/abandoned-upload purge, account deletion, backup propagation/replay, storage reconciliation, or operator dead-letter tooling. A DEAD_LETTER item remains unresolved and requires investigation. This milestone does not close the real-personal-resume or hosted-deployment readiness gates.
-
 
 ## 18. Branch 36 — 24-hour rejected and abandoned upload retention
 
@@ -209,16 +205,30 @@ Branch 36 implements the owner-approved retention rule for upload attempts that 
 
 **Scope boundary:** active original/tailored assets are not expired by this worker. Individual user deletion remains Branch 34/35. Account deletion, backup deletion replay, storage reconciliation, and operator dead-letter tooling remain separate milestones. This branch does not close the real-personal-resume or hosted-deployment readiness gates.
 
-
 ## 19. Branch 37 — confirmed account deletion
 
 Branch 37 implements the approved account-deletion workflow:
 
 - The authenticated owner must submit the exact account email and current password, with CSRF protection, before deletion is accepted.
-- The account is immediately marked `DELETION_PENDING`; subsequent password authentication is disabled, all JDBC sessions indexed to the account are revoked, and the current request session is invalidated.
+- The account is immediately marked DELETION_PENDING; subsequent password authentication is disabled, all JDBC sessions indexed to the account are revoked, and the current request session is invalidated.
 - A durable account-deletion job is queued. The worker removes every attributable resume binary and rejected/abandoned upload object, independently verifies storage absence, and only then deletes the account's resume metadata, tracker records, profile, skills, and user row.
 - The worker uses bounded batches, PostgreSQL row locking, stale-lease recovery, exponential retry, and a DEAD_LETTER state after eight failed attempts. A DEAD_LETTER account remains inaccessible and is not reported as deleted.
 - Upload-cleanup records now carry an owner ID until completion, then scrub it. Legacy unowned rejected/abandoned upload objects remain covered by the 24-hour retention worker.
 - Completed deletion leaves only a non-user-identifying metadata audit event with a 12-month expiry. The durable job scrubs its owner ID on completion.
 
-**Important boundaries:** the endpoint returns accepted when deletion is queued, not when physical deletion is complete. Only a COMPLETED job means the worker verified document absence and removed relational data. DEAD_LETTER jobs require operator investigation. Backup copies are not yet replayed or erased by this branch; Branch 38 must implement the approved 28-day backup-erasure window and restore-time deletion replay. Real personal-resume use remains NOT SAFE / not approved, and hosted/public deployment remains NOT READY.
+**Important boundaries:** the endpoint returns accepted when deletion is queued, not when physical deletion is complete. Only a COMPLETED job means the worker verified document absence and removed relational data. DEAD_LETTER jobs require operator investigation. Backup copies are not yet replayed or erased by this branch; Branch 38 adds a protected restore journal and local restore procedure. Real personal-resume use remains NOT SAFE / not approved, and hosted/public deployment remains NOT READY.
+
+## 20. Branch 38 — backup, restore, and deletion propagation
+
+Branch 38 introduces the first local Windows implementation of the approved recovery policy:
+
+- Account deletion acceptance writes an opaque sidecar tombstone (operation UUID, owner UUID, schema version, UTC time) to a journal outside PostgreSQL and document storage before success is returned. The worker also records legacy queued jobs before removing their binaries.
+- Journal writes are append-only, deduplicated by operation UUID, flushed to disk, and protected by a separate lock file. Journal compaction removes entries after 29 days to cover the approved 28-day recovery-point window plus the boundary.
+- A local backup script creates coordinated PostgreSQL, document-root, and journal snapshots with a SHA-256 manifest; it requires an explicit maintenance pause and BitLocker-protected source volumes.
+- Backup retention is capped at 7 daily and 4 weekly recovery points and 28 days. The script does not configure Task Scheduler or prove a restore.
+- An isolated restore script validates the manifest, rejects recovery points older than 28 days, restores the database and files, runs Flyway in non-web mode with cleanup schedulers disabled, and replays the latest independent deletion journal before application access.
+- Replay removes attributable quarantine/available files, sessions, resume/upload records, tracker data, profile/skills, and the user row. Replay is idempotent and halts on invalid journal records or integrity/database errors.
+
+See [Local Backup & Restore Runbook](architecture/storage/LOCAL_BACKUP_RESTORE_RUNBOOK.md).
+
+**Not yet verified:** PowerShell scripts have not been exercised on the target Windows host; no actual PostgreSQL + filesystem restore drill has passed; no scheduled tasks, independent off-device copy, recovery-key escrow, or effective NTFS ACL inspection is claimed. A successful CI build is not a restore-drill pass. Synthetic-data local testing remains pending; real personal-resume use remains NOT SAFE / not approved; hosted/public deployment remains NOT READY.
