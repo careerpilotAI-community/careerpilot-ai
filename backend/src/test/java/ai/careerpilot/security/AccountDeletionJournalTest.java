@@ -15,19 +15,24 @@ class AccountDeletionJournalTest {
     Path tempDir;
 
     @Test
-    void recordsOpaqueDeletionTombstoneOnceAndKeepsJournalOutsideDatabase() throws Exception {
+    void recordsAccountAndAssetTombstonesOnceWithoutPersonalContent() throws Exception {
         Path journalFile = tempDir.resolve("journal").resolve("account-deletions.jsonl");
         AccountDeletionJournal journal = new AccountDeletionJournal(journalFile.toString(), new ObjectMapper());
-        UUID operationId = UUID.randomUUID();
+        UUID accountOperation = UUID.randomUUID();
+        UUID assetOperation = UUID.randomUUID();
         UUID ownerId = UUID.randomUUID();
+        UUID assetId = UUID.randomUUID();
 
-        journal.record(operationId, ownerId);
-        journal.record(operationId, ownerId);
+        journal.record(accountOperation, ownerId);
+        journal.record(accountOperation, ownerId);
+        journal.recordAssetDeletion(assetOperation, ownerId, assetId);
+        journal.recordAssetDeletion(assetOperation, ownerId, assetId);
 
         String content = Files.readString(journalFile);
-        assertThat(content.lines()).hasSize(1);
-        assertThat(content).contains(operationId.toString(), ownerId.toString());
-        assertThat(content).doesNotContain("@", "password", "resume", "filename");
+        assertThat(content.lines()).hasSize(2);
+        assertThat(content).contains(accountOperation.toString(), ownerId.toString(), assetId.toString());
+        assertThat(content).contains("\"deletionType\":\"ACCOUNT\"", "\"deletionType\":\"ASSET\"");
+        assertThat(content).doesNotContain("@", "password", "resume", "filename", "storageKey");
     }
 
     @Test
@@ -40,7 +45,8 @@ class AccountDeletionJournalTest {
         Files.writeString(journalFile,
                 "{\"schemaVersion\":1,\"operationId\":\"" + operationId
                         + "\",\"ownerId\":\"" + ownerId
-                        + "\",\"recordedAt\":\"2000-01-01T00:00:00Z\"}\n");
+                        + "\",\"deletionType\":\"ACCOUNT\",\"assetId\":null,"
+                        + "\"recordedAt\":\"2000-01-01T00:00:00Z\"}\n");
 
         assertThat(journal.pruneExpired()).isEqualTo(1);
         assertThat(Files.readString(journalFile)).isEmpty();
