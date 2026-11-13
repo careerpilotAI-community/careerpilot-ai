@@ -68,7 +68,7 @@ public class ResumeManagementService {
             jdbc.update("""
                 UPDATE resume_upload_cleanup_jobs
                 SET job_status='COMPLETED', reason_code='UPLOAD_ACCEPTED', completed_at=CURRENT_TIMESTAMP, processing_started_at=NULL
-                WHERE storage_key=? AND job_status='PENDING'
+                WHERE storage_key=? AND job_status='IN_PROGRESS'
                 """, key);
             return response(saved);
         } catch(ResponseStatusException ex) {
@@ -140,7 +140,7 @@ public class ResumeManagementService {
         independentTransactions.executeWithoutResult(status -> jdbc.update("""
             INSERT INTO resume_upload_cleanup_jobs
                 (operation_id, storage_key, job_status, reason_code, created_at, expires_at, attempt_count, next_attempt_at)
-            VALUES (?, ?, 'PENDING', 'UPLOAD_IN_PROGRESS', CURRENT_TIMESTAMP,
+            VALUES (?, ?, 'IN_PROGRESS', 'UPLOAD_IN_PROGRESS', CURRENT_TIMESTAMP,
                     CURRENT_TIMESTAMP + INTERVAL '24 hours', 0, CURRENT_TIMESTAMP)
             """, UUID.randomUUID(), key));
     }
@@ -148,7 +148,7 @@ public class ResumeManagementService {
         independentTransactions.executeWithoutResult(status -> jdbc.update("""
             UPDATE resume_upload_cleanup_jobs
             SET reason_code=?, expires_at=CURRENT_TIMESTAMP + INTERVAL '24 hours'
-            WHERE storage_key=? AND job_status='PENDING'
+            WHERE storage_key=? AND job_status='IN_PROGRESS'
             """, reason, key));
     }
     private void removeQuietly(String key){try{storage.remove(key);}catch(IOException ignored){}}
