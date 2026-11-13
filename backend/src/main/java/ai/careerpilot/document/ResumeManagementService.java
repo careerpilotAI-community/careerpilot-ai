@@ -38,7 +38,7 @@ public class ResumeManagementService {
     }
     @Transactional
     public AssetResponse upload(String email, MultipartFile file, String kind) {
-        UUID owner=owner(email);
+        UUID owner=ownerForWrite(email);
         if (file==null || file.isEmpty() || file.getSize()>ResumeFileValidator.MAX_BYTES)
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"File must be between 1 byte and 10 MiB.");
         if (!"ORIGINAL".equals(kind) && !"TAILORED".equals(kind))
@@ -83,7 +83,7 @@ public class ResumeManagementService {
     }
     @Transactional
     public DeletionResponse requestDeletion(String email, UUID id) {
-        UUID owner=owner(email);
+        UUID owner=ownerForWrite(email);
         List<String> states=jdbc.query(
             "SELECT status FROM resume_assets WHERE id = ? AND user_id = ? FOR UPDATE",
             (rs,row)->rs.getString("status"), id, owner);
@@ -123,6 +123,14 @@ public class ResumeManagementService {
         catch(IOException ex) { throw new ResponseStatusException(HttpStatus.NOT_FOUND); }
     }
     private UUID owner(String email) {
+        var rows = jdbc.query("""
+            SELECT id FROM users
+            WHERE email=? AND account_status='ACTIVE'
+            """, (rs, row) -> rs.getObject("id", UUID.class), email.trim().toLowerCase(Locale.ROOT));
+        if (rows.isEmpty()) throw new ResponseStatusException(HttpStatus.UNAUTHORIZED);
+        return rows.get(0);
+    }
+    private UUID ownerForWrite(String email) {
         var rows = jdbc.query("""
             SELECT id FROM users
             WHERE email=? AND account_status='ACTIVE'
