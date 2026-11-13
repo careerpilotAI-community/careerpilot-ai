@@ -123,8 +123,13 @@ public class ResumeManagementService {
         catch(IOException ex) { throw new ResponseStatusException(HttpStatus.NOT_FOUND); }
     }
     private UUID owner(String email) {
-        return users.findByEmail(email.trim().toLowerCase(Locale.ROOT)).map(UserEntity::getId)
-            .orElseThrow(()->new ResponseStatusException(HttpStatus.UNAUTHORIZED));
+        var rows = jdbc.query("""
+            SELECT id FROM users
+            WHERE email=? AND account_status='ACTIVE'
+            FOR SHARE
+            """, (rs, row) -> rs.getObject("id", UUID.class), email.trim().toLowerCase(Locale.ROOT));
+        if (rows.isEmpty()) throw new ResponseStatusException(HttpStatus.UNAUTHORIZED);
+        return rows.get(0);
     }
     private String safeFilename(String input) {
         String name=input==null?"resume":input.replaceAll("[\\r\\n\\\\/\\u0000-\\u001f]","_").trim();
