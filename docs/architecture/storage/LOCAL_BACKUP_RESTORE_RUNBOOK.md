@@ -104,3 +104,49 @@ Record the recovery-point ID, backup age, restore start/end times, result, and o
 - A DEAD_LETTER account- or asset-deletion job remains unresolved; backups are blocked until the job is resolved. Do not describe it as completed or erase its operational evidence.
 
 **Readiness statement:** Branch 38 provides implementation and a testable procedure, not proof of recoverability. Synthetic-data restore validation remains pending. Real personal-resume use is still NOT SAFE / not approved, and hosted/public deployment remains NOT READY.
+
+
+## 7. BitLocker recovery-key escrow and controlled recovery
+
+Branch 33 approved OS-managed Windows full-volume encryption for the local application-data and backup volumes. Branch 39 does not add application-level encryption or a custom CareerPilot key store.
+
+### Before relying on encryption
+
+1. Confirm the target Windows edition/device supports the required BitLocker or Device Encryption controls.
+2. Confirm encryption is fully complete and protection is On for the volume containing the active document root, backup root, and independent journal directory.
+3. For each protected volume, identify its volume and recovery-protector identifiers. Record only non-secret identifiers, mount point, purpose, status, verification date, and operator in the recovery inventory.
+4. Back up each recovery password outside the encrypted computer. Maintain an independently accessible second protected copy. Do not keep a recovery USB beside the computer, place a plaintext key file on the encrypted volume, or commit recovery material to this repository.
+5. Confirm the owner can retrieve the escrowed recovery material through the intended recovery channel. Do not treat the existence of a file or a UI checkbox as proof of retrievability.
+
+Microsoft documents the supported recovery-key backup destinations and cautions against storing a recovery USB with the computer. The 48-digit recovery password is not reproducible if all copies are lost.
+
+### Recovery-protector rotation
+
+1. Start rotation only when the volume is healthy and accessible and the owner has a verified recovery path.
+2. Add a new BitLocker recovery-password protector using supported Windows management tooling.
+3. Escrow the new recovery password independently and verify the new record against the correct volume/protector identifier.
+4. Only after verification, remove the old or exposed protector. Never remove the only verified recovery protector.
+5. Update the non-secret inventory and record the date, reason category, operator, and completion result. Do not record the recovery password in the audit record.
+6. If compromise is suspected, treat the old recovery material as exposed until its protector has been removed and the replacement has been verified.
+
+Replacing a recovery-password protector is not the same as changing the volume's underlying encryption key or re-encrypting its contents.
+
+### Controlled recovery validation
+
+- Validate recovery using a disposable BitLocker-protected test volume or a separately prepared recovery-test device with synthetic data. Do not force recovery on the only production volume as a test.
+- Retrieve the escrowed recovery material through the documented independent channel and use it to unlock the test volume.
+- Confirm the test data is readable, record the outcome and elapsed time, then securely dispose of the test volume/data according to the test procedure.
+- A successful test-volume drill validates the escrow/retrieval procedure, not a real-device disaster recovery or the complete CareerPilot database/document restore.
+- The full CareerPilot restore drill remains separate: restore into isolated targets, apply the latest independent deletion journal, and verify metadata/object consistency, checksums, ownership, and application download behavior.
+
+### NTFS ACL verification
+
+On the actual Windows host, inspect effective ACLs on the document root, its quarantine/available descendants, backup root, and journal directory. Use Windows access-control tooling (for example, `icacls` and PowerShell `Get-Acl`) and test access using a separate standard Windows account that must not be able to read the private data. Review both explicit and inherited entries. Do not rely on `icacls /verify` alone as proof that unauthorized users are denied access; it checks ACL structure, not the complete application threat model.
+
+Do not run an automatic ACL rewrite as part of Branch 39. Any ACL mutation must be reviewed against the actual backend runtime identity and tested before use.
+
+### Evidence record
+
+Record only non-secret evidence: host/Windows edition, volume purpose and identifier, encryption/protection state, recovery-protector identifier, escrow verification date and outcome, ACL review outcome, recovery-test outcome, operator, and any exceptions. Never include recovery passwords, key files, key packages, document contents, or personal resume details.
+
+**Current status:** no target-host BitLocker/escrow verification, NTFS ACL inspection, recovery test-volume drill, or full PostgreSQL + filesystem restore drill has yet been evidenced by this repository.
