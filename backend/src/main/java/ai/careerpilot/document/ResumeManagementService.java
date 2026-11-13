@@ -113,7 +113,6 @@ public class ResumeManagementService {
     }
     private String safeFilename(String input) {
         String name=input==null?"resume":input.replaceAll("[\\r\\n\\\\/\\u0000-\\u001f]","_").trim();
-\\\\/\\u0000-\\u001f]","_").trim();
         if(name.length()>180) name=name.substring(name.length()-180);
         if(name.isBlank()) name="resume";
         return name;
