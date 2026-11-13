@@ -1,5 +1,6 @@
 package ai.careerpilot.document;
 
+import ai.careerpilot.security.AccountDeletionJournal;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -20,16 +21,18 @@ public class ResumeDeletionWorker {
     private final JdbcTemplate jdbc;
     private final TransactionTemplate transactions;
     private final DocumentStorage storage;
+    private final AccountDeletionJournal deletionJournal;
     private final boolean enabled;
     private final boolean schedulingEnabled;
 
     public ResumeDeletionWorker(JdbcTemplate jdbc, TransactionTemplate transactions,
-            DocumentStorage storage,
+            DocumentStorage storage, AccountDeletionJournal deletionJournal,
             @Value("${app.documents.cleanup.enabled:true}") boolean enabled,
             @Value("${app.documents.cleanup.scheduling-enabled:true}") boolean schedulingEnabled) {
         this.jdbc = jdbc;
         this.transactions = transactions;
         this.storage = storage;
+        this.deletionJournal = deletionJournal;
         this.enabled = enabled;
         this.schedulingEnabled = schedulingEnabled;
     }
@@ -48,6 +51,8 @@ public class ResumeDeletionWorker {
         DeletionJob job = transactions.execute(status -> claimNext());
         if (job == null) return false;
         try {
+            // Record the owner-scoped tombstone outside PostgreSQL before touching storage.
+            deletionJournal.recordAssetDeletion(job.operationId(), job.ownerId(), job.assetId());
             storage.remove(job.storageKey());
             if (storage.exists(job.storageKey())) {
                 throw new IllegalStateException("Storage object remains after delete.");
@@ -61,7 +66,7 @@ public class ResumeDeletionWorker {
 
     private DeletionJob claimNext() {
         var jobs = jdbc.query("""
-            SELECT j.operation_id, j.asset_id, a.storage_key
+            SELECT j.operation_id, j.asset_id, j.owner_id, a.storage_key
             FROM resume_deletion_jobs j
             JOIN resume_assets a ON a.id = j.asset_id AND a.user_id = j.owner_id
             WHERE (
@@ -78,6 +83,7 @@ public class ResumeDeletionWorker {
             """, (rs, row) -> new DeletionJob(
                 rs.getObject("operation_id", UUID.class),
                 rs.getObject("asset_id", UUID.class),
+                rs.getObject("owner_id", UUID.class),
                 rs.getString("storage_key")));
         if (jobs.isEmpty()) return null;
         DeletionJob job = jobs.get(0);
@@ -92,7 +98,6 @@ public class ResumeDeletionWorker {
     }
 
     private void finalizeDeletion(DeletionJob job) {
-        // Recheck absence immediately before scrubbing metadata.
         try {
             if (storage.exists(job.storageKey())) {
                 throw new IllegalStateException("Storage object presence could not be cleared.");
@@ -146,5 +151,5 @@ public class ResumeDeletionWorker {
         });
     }
 
-    private record DeletionJob(UUID operationId, UUID assetId, String storageKey) {}
+    private record DeletionJob(UUID operationId, UUID assetId, UUID ownerId, String storageKey) {}
 }
