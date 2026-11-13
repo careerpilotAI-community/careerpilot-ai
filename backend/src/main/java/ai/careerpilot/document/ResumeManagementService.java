@@ -112,7 +112,7 @@ public class ResumeManagementService {
             .orElseThrow(()->new ResponseStatusException(HttpStatus.UNAUTHORIZED));
     }
     private String safeFilename(String input) {
-        String name=input==null?"resume":input.replaceAll("[\\r
+        String name=input==null?"resume":input.replaceAll("[\\r\\n\\\\/\\u0000-\\u001f]","_").trim();
 \\\\/\\u0000-\\u001f]","_").trim();
         if(name.length()>180) name=name.substring(name.length()-180);
         if(name.isBlank()) name="resume";
@@ -124,5 +124,6 @@ public class ResumeManagementService {
     }
     private void removeQuietly(String key){try{storage.remove(key);}catch(IOException ignored){}}
     public record AssetResponse(UUID id,String assetKind,String filename,String mediaType,long sizeBytes,String checksumSha256,String status,java.time.Instant createdAt){}
-    public record DeletionResponse(UUID assetId,UUID operationId,java.time.Instant requestedAt,String status){}\n    public record DownloadedAsset(ResumeAssetEntity asset,InputStream stream){}
+    public record DeletionResponse(UUID assetId,UUID operationId,java.time.Instant requestedAt,String status){}
+    public record DownloadedAsset(ResumeAssetEntity asset,InputStream stream){}
 }
