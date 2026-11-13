@@ -50,6 +50,13 @@ if (-not $ReplayDeletionJournal) {
 
 New-Item -ItemType Directory -Force -Path $TargetDocumentRoot | Out-Null
 New-Item -ItemType Directory -Force -Path (Split-Path -Parent $TargetJournalFile) | Out-Null
+if (-not (Get-Command "Get-BitLockerVolume" -ErrorAction SilentlyContinue)) {
+    throw "BitLocker status cannot be verified for restored data paths."
+}
+foreach ($path in @((Resolve-Path $TargetDocumentRoot).Path, (Resolve-Path (Split-Path -Parent $TargetJournalFile)).Path)) {
+    $volume = Get-BitLockerVolume -MountPoint ([IO.Path]::GetPathRoot($path)) -ErrorAction Stop
+    if ($volume.ProtectionStatus -ne "On") { throw "Restore target document and journal volumes must be BitLocker protected." }
+}
 
 # Restore only into a dedicated, isolated database. The application must remain stopped.
 $env:PGPASSWORD = $env:DATABASE_PASSWORD
@@ -95,11 +102,11 @@ finally {
 }
 
 function Invoke-Psql([string]$Sql, [switch]$TuplesOnly) {
-    $args = @("--no-psqlrc", "--set", "ON_ERROR_STOP=1", "--host=$DatabaseHost", "--port=$DatabasePort",
+    $psqlArgs = @("--no-psqlrc", "--set", "ON_ERROR_STOP=1", "--host=$DatabaseHost", "--port=$DatabasePort",
         "--username=$DatabaseUser", "--dbname=$TargetDatabase", "--command", $Sql)
-    if ($TuplesOnly) { $args = @("--no-psqlrc", "--tuples-only", "--no-align", "--set", "ON_ERROR_STOP=1",
+    if ($TuplesOnly) { $psqlArgs = @("--no-psqlrc", "--tuples-only", "--no-align", "--set", "ON_ERROR_STOP=1",
         "--host=$DatabaseHost", "--port=$DatabasePort", "--username=$DatabaseUser", "--dbname=$TargetDatabase", "--command", $Sql) }
-    $output = & psql.exe @args
+    $output = & psql.exe @psqlArgs
     if ($LASTEXITCODE -ne 0) { throw "PostgreSQL deletion-journal replay failed." }
     return $output
 }
