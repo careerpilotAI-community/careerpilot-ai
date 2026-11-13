@@ -76,6 +76,7 @@ $oldWebType = $env:SPRING_MAIN_WEB_APPLICATION_TYPE
 $oldResumeCleanup = $env:DOCUMENT_CLEANUP_SCHEDULING_ENABLED
 $oldUploadRetention = $env:DOCUMENT_RETENTION_SCHEDULING_ENABLED
 $oldAccountDeletion = $env:ACCOUNT_DELETION_SCHEDULING_ENABLED
+$oldSchedulingEnabled = $env:APP_SCHEDULING_ENABLED
 try {
     $env:DATABASE_URL = "jdbc:postgresql://${DatabaseHost}:$DatabasePort/$TargetDatabase"
     $env:DOCUMENT_STORAGE_ROOT = $TargetDocumentRoot
@@ -84,6 +85,7 @@ try {
     $env:DOCUMENT_CLEANUP_SCHEDULING_ENABLED = "false"
     $env:DOCUMENT_RETENTION_SCHEDULING_ENABLED = "false"
     $env:ACCOUNT_DELETION_SCHEDULING_ENABLED = "false"
+    $env:APP_SCHEDULING_ENABLED = "false"
     Push-Location $BackendDirectory
     try {
         & .\mvnw.cmd -DskipTests spring-boot:run
@@ -99,6 +101,7 @@ finally {
     $env:DOCUMENT_CLEANUP_SCHEDULING_ENABLED = $oldResumeCleanup
     $env:DOCUMENT_RETENTION_SCHEDULING_ENABLED = $oldUploadRetention
     $env:ACCOUNT_DELETION_SCHEDULING_ENABLED = $oldAccountDeletion
+    $env:APP_SCHEDULING_ENABLED = $oldSchedulingEnabled
 }
 
 function Invoke-Psql([string]$Sql, [switch]$TuplesOnly) {
