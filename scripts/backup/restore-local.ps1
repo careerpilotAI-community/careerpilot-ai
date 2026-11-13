@@ -26,10 +26,33 @@ if (-not $env:DATABASE_PASSWORD) { throw "Set DATABASE_PASSWORD in the environme
 if (-not (Get-Command "pg_restore.exe" -ErrorAction SilentlyContinue)) { throw "pg_restore.exe is required and must be on PATH." }
 if (-not (Get-Command "psql.exe" -ErrorAction SilentlyContinue)) { throw "psql.exe is required and must be on PATH." }
 $backup = (Resolve-Path -LiteralPath $BackupPath).Path
+$repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "../..")).Path
+$targetDocumentFull = [IO.Path]::GetFullPath($TargetDocumentRoot).TrimEnd("\")
+$targetJournalFull = [IO.Path]::GetFullPath($TargetJournalFile)
+$currentJournalFull = (Resolve-Path -LiteralPath $CurrentDeletionJournal).Path
+$backupFull = [IO.Path]::GetFullPath($backup).TrimEnd("\")
+function Test-PathWithin([string]$Child, [string]$Parent) {
+    $childPath = [IO.Path]::GetFullPath($Child).TrimEnd("\")
+    $parentPath = [IO.Path]::GetFullPath($Parent).TrimEnd("\")
+    return $childPath.Equals($parentPath, [StringComparison]::OrdinalIgnoreCase) -or
+        $childPath.StartsWith($parentPath + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase)
+}
+if ($TargetDatabase -notmatch '(?i)(restore|recovery|drill)') {
+    throw "TargetDatabase must be a clearly isolated database name containing restore, recovery, or drill."
+}
+if (Test-PathWithin $targetDocumentFull $repoRoot -or Test-PathWithin $targetJournalFull $repoRoot) {
+    throw "Restore targets must be outside the Git repository."
+}
+if ((Test-PathWithin $targetDocumentFull $backupFull) -or (Test-PathWithin $backupFull $targetDocumentFull) -or
+    (Test-PathWithin $targetJournalFull $backupFull) -or (Test-PathWithin $backupFull $targetJournalFull) -or
+    $targetJournalFull.Equals($currentJournalFull, [StringComparison]::OrdinalIgnoreCase)) {
+    throw "Restore targets must be isolated from backup media and the live deletion journal."
+}
 $manifestPath = Join-Path $backup "backup-manifest.json"
 if (-not (Test-Path -LiteralPath $manifestPath -PathType Leaf)) { throw "Backup manifest is missing." }
 $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
 if ($manifest.schemaVersion -ne 1 -or $manifest.maximumBackupErasureDays -ne 28) { throw "Unsupported backup manifest or retention policy." }
+if ($TargetDatabase -eq $manifest.database) { throw "TargetDatabase must not be the source database." }
 $created = [DateTimeOffset]::Parse($manifest.createdUtc)
 if ($created -lt [DateTimeOffset]::UtcNow.AddDays(-28)) {
     throw "This recovery point is older than the approved 28-day deletion-propagation window. Refusing an unsafe restore."
