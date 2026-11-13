@@ -4,6 +4,7 @@ param(
     [Parameter(Mandatory = $true)][string]$TargetDocumentRoot,
     [Parameter(Mandatory = $true)][string]$TargetJournalFile,
     [Parameter(Mandatory = $true)][string]$TargetDatabase,
+    [Parameter(Mandatory = $true)][string]$BackendDirectory,
     [string]$DatabaseUser = "careerpilot",
     [string]$DatabaseHost = "127.0.0.1",
     [int]$DatabasePort = 5432,
@@ -12,12 +13,16 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-foreach ($path in @($BackupPath, $CurrentDeletionJournal, $TargetDocumentRoot, $TargetJournalFile)) {
+foreach ($path in @($BackupPath, $CurrentDeletionJournal, $TargetDocumentRoot, $TargetJournalFile, $BackendDirectory)) {
     if (-not [IO.Path]::IsPathFullyQualified($path)) { throw "All paths must be absolute." }
 }
 if (-not (Test-Path -LiteralPath $CurrentDeletionJournal -PathType Leaf)) {
     throw "The latest independent deletion journal is required. Never replay only the journal snapshot bundled with an older backup."
 }
+if (-not (Test-Path -LiteralPath (Join-Path $BackendDirectory "mvnw.cmd") -PathType Leaf)) {
+    throw "BackendDirectory must contain the repository Maven Wrapper."
+}
+if (-not $env:DATABASE_PASSWORD) { throw "Set DATABASE_PASSWORD in the environment before restoring." }
 if (-not (Get-Command "pg_restore.exe" -ErrorAction SilentlyContinue)) { throw "pg_restore.exe is required and must be on PATH." }
 if (-not (Get-Command "psql.exe" -ErrorAction SilentlyContinue)) { throw "psql.exe is required and must be on PATH." }
 $backup = (Resolve-Path -LiteralPath $BackupPath).Path
@@ -47,6 +52,7 @@ New-Item -ItemType Directory -Force -Path $TargetDocumentRoot | Out-Null
 New-Item -ItemType Directory -Force -Path (Split-Path -Parent $TargetJournalFile) | Out-Null
 
 # Restore only into a dedicated, isolated database. The application must remain stopped.
+$env:PGPASSWORD = $env:DATABASE_PASSWORD
 & pg_restore.exe --host=$DatabaseHost --port=$DatabasePort --username=$DatabaseUser --dbname=$TargetDatabase --clean --if-exists --no-owner --no-acl $dump
 if ($LASTEXITCODE -ne 0) { throw "pg_restore failed with exit code $LASTEXITCODE." }
 
@@ -54,6 +60,39 @@ if ($LASTEXITCODE -ne 0) { throw "pg_restore failed with exit code $LASTEXITCODE
 if ($LASTEXITCODE -ge 8) { throw "Document restore failed with robocopy exit code $LASTEXITCODE." }
 # Use the latest independent sidecar journal, not the stale copy bundled with the selected recovery point.
 Copy-Item -LiteralPath $CurrentDeletionJournal -Destination $TargetJournalFile -Force
+
+# Apply newer Flyway migrations without starting an HTTP listener or cleanup workers.
+$oldDatabaseUrl = $env:DATABASE_URL
+$oldStorageRoot = $env:DOCUMENT_STORAGE_ROOT
+$oldJournalFile = $env:ACCOUNT_DELETION_JOURNAL_FILE
+$oldWebType = $env:SPRING_MAIN_WEB_APPLICATION_TYPE
+$oldResumeCleanup = $env:DOCUMENT_CLEANUP_SCHEDULING_ENABLED
+$oldUploadRetention = $env:DOCUMENT_RETENTION_SCHEDULING_ENABLED
+$oldAccountDeletion = $env:ACCOUNT_DELETION_SCHEDULING_ENABLED
+try {
+    $env:DATABASE_URL = "jdbc:postgresql://${DatabaseHost}:$DatabasePort/$TargetDatabase"
+    $env:DOCUMENT_STORAGE_ROOT = $TargetDocumentRoot
+    $env:ACCOUNT_DELETION_JOURNAL_FILE = $TargetJournalFile
+    $env:SPRING_MAIN_WEB_APPLICATION_TYPE = "none"
+    $env:DOCUMENT_CLEANUP_SCHEDULING_ENABLED = "false"
+    $env:DOCUMENT_RETENTION_SCHEDULING_ENABLED = "false"
+    $env:ACCOUNT_DELETION_SCHEDULING_ENABLED = "false"
+    Push-Location $BackendDirectory
+    try {
+        & .\mvnw.cmd -DskipTests spring-boot:run
+        if ($LASTEXITCODE -ne 0) { throw "Migration-only application startup failed with exit code $LASTEXITCODE." }
+    }
+    finally { Pop-Location }
+}
+finally {
+    $env:DATABASE_URL = $oldDatabaseUrl
+    $env:DOCUMENT_STORAGE_ROOT = $oldStorageRoot
+    $env:ACCOUNT_DELETION_JOURNAL_FILE = $oldJournalFile
+    $env:SPRING_MAIN_WEB_APPLICATION_TYPE = $oldWebType
+    $env:DOCUMENT_CLEANUP_SCHEDULING_ENABLED = $oldResumeCleanup
+    $env:DOCUMENT_RETENTION_SCHEDULING_ENABLED = $oldUploadRetention
+    $env:ACCOUNT_DELETION_SCHEDULING_ENABLED = $oldAccountDeletion
+}
 
 function Invoke-Psql([string]$Sql, [switch]$TuplesOnly) {
     $args = @("--no-psqlrc", "--set", "ON_ERROR_STOP=1", "--host=$DatabaseHost", "--port=$DatabasePort",
