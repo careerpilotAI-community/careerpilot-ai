@@ -56,7 +56,7 @@ public class ResumeManagementService {
         if(current+bytes.length>userQuota || deployment+bytes.length>deploymentQuota)
             throw new ResponseStatusException(HttpStatus.INSUFFICIENT_STORAGE,"Document storage quota exceeded.");
         String key=UUID.randomUUID().toString(); String verdict;
-        createUploadCleanupAttempt(key);
+        createUploadCleanupAttempt(owner, key);
         try {
             storage.storeQuarantined(new ByteArrayInputStream(bytes),key);
             MalwareScanner.ScanResult scan=scanner.scan(new ByteArrayInputStream(bytes));
@@ -67,7 +67,7 @@ public class ResumeManagementService {
             ResumeAssetEntity saved=assets.save(new ResumeAssetEntity(owner,kind,filename,valid.mediaType(),bytes.length,checksum,key,verdict));
             jdbc.update("""
                 UPDATE resume_upload_cleanup_jobs
-                SET job_status='COMPLETED', reason_code='UPLOAD_ACCEPTED', storage_key=NULL, completed_at=CURRENT_TIMESTAMP, processing_started_at=NULL
+                SET job_status='COMPLETED', reason_code='UPLOAD_ACCEPTED', storage_key=NULL, owner_id=NULL, completed_at=CURRENT_TIMESTAMP, processing_started_at=NULL
                 WHERE storage_key=? AND job_status='IN_PROGRESS'
                 """, key);
             return response(saved);
@@ -136,13 +136,13 @@ public class ResumeManagementService {
         return new AssetResponse(a.getId(),a.getAssetKind(),a.getOriginalFilename(),a.getMediaType(),
             a.getSizeBytes(),a.getChecksumSha256(),a.getStatus(),a.getCreatedAt());
     }
-    private void createUploadCleanupAttempt(String key) {
+    private void createUploadCleanupAttempt(UUID ownerId, String key) {
         independentTransactions.executeWithoutResult(status -> jdbc.update("""
             INSERT INTO resume_upload_cleanup_jobs
-                (operation_id, storage_key, job_status, reason_code, created_at, expires_at, attempt_count, next_attempt_at)
-            VALUES (?, ?, 'IN_PROGRESS', 'UPLOAD_IN_PROGRESS', CURRENT_TIMESTAMP,
+                (operation_id, owner_id, storage_key, job_status, reason_code, created_at, expires_at, attempt_count, next_attempt_at)
+            VALUES (?, ?, ?, 'IN_PROGRESS', 'UPLOAD_IN_PROGRESS', CURRENT_TIMESTAMP,
                     CURRENT_TIMESTAMP + INTERVAL '24 hours', 0, CURRENT_TIMESTAMP)
-            """, UUID.randomUUID(), key));
+            """, UUID.randomUUID(), ownerId, key));
     }
     private void markUploadAttemptTerminal(String key, String reason) {
         independentTransactions.executeWithoutResult(status -> jdbc.update("""
