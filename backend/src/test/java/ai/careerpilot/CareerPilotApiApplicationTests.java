@@ -78,7 +78,7 @@ class CareerPilotApiApplicationTests {
     void contextLoadsAfterFreshFlywayMigration() {
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT version FROM flyway_schema_history WHERE success = true ORDER BY installed_rank DESC LIMIT 1",
-                String.class)).isEqualTo("3");
+                String.class)).isEqualTo("4");
     }
 
 
@@ -296,5 +296,56 @@ class CareerPilotApiApplicationTests {
                 VALUES (?, ?, ?)
                 """, UUID.randomUUID(), " MixedCase@example.com ", "test-only-password-hash"))
                 .isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    void resumeDeletionImmediatelyRevokesAccessAndQueuesDurableCleanup() throws Exception {
+        when(malwareScanner.scan(any(InputStream.class))).thenReturn(new MalwareScanner.ScanResult(true, "CLEAN"));
+        UserEntity owner=userRepository.saveAndFlush(new UserEntity("resume-delete-owner-" + UUID.randomUUID() + "@example.com","test-only-password-hash"));
+        UserEntity other=userRepository.saveAndFlush(new UserEntity("resume-delete-other-" + UUID.randomUUID() + "@example.com","test-only-password-hash"));
+        byte[] pdf;
+        try(PDDocument document=new PDDocument(); ByteArrayOutputStream output=new ByteArrayOutputStream()) {
+            document.addPage(new PDPage()); document.save(output); pdf=output.toByteArray();
+        }
+        MockMultipartFile file=new MockMultipartFile("file","delete-me.pdf","application/pdf",pdf);
+        var uploaded=mockMvc.perform(multipart("/api/resumes").file(file).param("kind","ORIGINAL")
+                .with(user(owner.getEmail())).with(csrf()))
+            .andExpect(status().isCreated()).andReturn();
+        UUID id=UUID.fromString(com.jayway.jsonpath.JsonPath.read(uploaded.getResponse().getContentAsString(),"$.id"));
+
+        var deletion=mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete("/api/resumes/{id}",id)
+                .with(user(owner.getEmail())).with(csrf()))
+            .andExpect(status().isAccepted())
+            .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.status").value("DELETING"))
+            .andReturn();
+        String operationId=com.jayway.jsonpath.JsonPath.read(deletion.getResponse().getContentAsString(),"$.operationId");
+        assertThat(jdbcTemplate.queryForObject("SELECT status FROM resume_assets WHERE id=?",String.class,id)).isEqualTo("DELETING");
+        assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM resume_deletion_jobs WHERE asset_id=? AND job_status='PENDING'",Integer.class,id)).isEqualTo(1);
+
+        mockMvc.perform(get("/api/resumes/{id}/download",id).with(user(owner.getEmail())))
+            .andExpect(status().isNotFound());
+        mockMvc.perform(get("/api/resumes").with(user(owner.getEmail())))
+            .andExpect(status().isOk())
+            .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$").isEmpty());
+
+        var repeated=mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete("/api/resumes/{id}",id)
+                .with(user(owner.getEmail())).with(csrf()))
+            .andExpect(status().isAccepted()).andReturn();
+        String repeatedOperationId=com.jayway.jsonpath.JsonPath.read(repeated.getResponse().getContentAsString(),"$.operationId");
+        assertThat(repeatedOperationId).isEqualTo(operationId);
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete("/api/resumes/{id}",id)
+                .with(user(other.getEmail())).with(csrf()))
+            .andExpect(status().isNotFound());
+        assertThat(jdbcTemplate.queryForObject("SELECT status FROM resume_assets WHERE id=?",String.class,id)).isEqualTo("DELETING");
+    }
+
+    @Test
+    void resumeDeletionRequiresCsrfAndAuthentication() throws Exception {
+        UUID unknown=UUID.randomUUID();
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete("/api/resumes/{id}",unknown))
+            .andExpect(status().isForbidden());
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete("/api/resumes/{id}",unknown).with(csrf()))
+            .andExpect(status().isUnauthorized());
     }
 }

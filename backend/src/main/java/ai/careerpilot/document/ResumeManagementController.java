@@ -21,6 +21,10 @@ public class ResumeManagementController {
         @RequestParam(defaultValue="ORIGINAL") @Pattern(regexp="ORIGINAL|TAILORED") String kind) {
         return ResponseEntity.status(HttpStatus.CREATED).body(service.upload(auth.getName(),file,kind));
     }
+    @org.springframework.web.bind.annotation.DeleteMapping("/{id}")
+    public ResponseEntity<ResumeManagementService.DeletionResponse> delete(Authentication auth,@PathVariable UUID id) {
+        return ResponseEntity.accepted().body(service.requestDeletion(auth.getName(),id));
+    }
     @GetMapping("/{id}/download")
     public ResponseEntity<org.springframework.core.io.InputStreamResource> download(Authentication auth,@PathVariable UUID id) {
         ResumeManagementService.DownloadedAsset downloaded=service.download(auth.getName(),id);
