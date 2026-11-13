@@ -64,7 +64,8 @@ public class ResumeUploadRetentionWorker {
             SELECT operation_id, storage_key
             FROM resume_upload_cleanup_jobs
             WHERE (
-                (job_status='PENDING' AND expires_at <= CURRENT_TIMESTAMP AND next_attempt_at <= CURRENT_TIMESTAMP)
+                ((job_status='PENDING' AND expires_at <= CURRENT_TIMESTAMP AND next_attempt_at <= CURRENT_TIMESTAMP)
+                    OR (job_status='IN_PROGRESS' AND created_at <= CURRENT_TIMESTAMP - INTERVAL '24 hours'))
                 OR
                 (job_status='PROCESSING'
                     AND processing_started_at < CURRENT_TIMESTAMP - INTERVAL '5 minutes')
