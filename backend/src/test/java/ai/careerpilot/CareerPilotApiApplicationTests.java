@@ -371,13 +371,14 @@ class CareerPilotApiApplicationTests {
         UUID id=UUID.fromString(com.jayway.jsonpath.JsonPath.read(upload.getResponse().getContentAsString(),"$.id"));
         String key=jdbcTemplate.queryForObject("SELECT storage_key FROM resume_assets WHERE id=?",String.class,id);
         assertThat(documentStorage.exists(key)).isTrue();
-        jdbcTemplate.update("UPDATE resume_deletion_jobs SET requested_at=CURRENT_TIMESTAMP - INTERVAL '1 day' WHERE asset_id=?",id);
 
         mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete("/api/resumes/{id}",id)
                 .with(user(owner.getEmail())).with(csrf()))
             .andExpect(status().isAccepted());
 
         assertThat(resumeDeletionWorker.processNextJob()).isTrue();
+        var jobState = jdbcTemplate.queryForMap("SELECT job_status, last_error_code FROM resume_deletion_jobs WHERE asset_id=?", id);
+        assertThat(jobState.get("job_status")).as("deletion worker job state; error code: %s", jobState.get("last_error_code")).isEqualTo("COMPLETED");
         assertThat(documentStorage.exists(key)).isFalse();
         assertThat(jdbcTemplate.queryForObject("SELECT status FROM resume_assets WHERE id=?",String.class,id)).isEqualTo("DELETED");
         assertThat(jdbcTemplate.queryForObject("SELECT storage_key FROM resume_assets WHERE id=?",String.class,id)).isNull();
