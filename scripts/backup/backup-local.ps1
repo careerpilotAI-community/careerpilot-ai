@@ -28,9 +28,10 @@ Assert-AbsolutePath $JournalFile "JournalFile"
 if (-not $MaintenanceConfirmed) {
     throw "Stop CareerPilot API and upload/deletion workers, then rerun with -MaintenanceConfirmed. PostgreSQL and filesystem snapshots must be coordinated."
 }
-foreach ($tool in @("pg_dump.exe", "robocopy.exe")) {
+foreach ($tool in @("pg_dump.exe", "psql.exe", "robocopy.exe")) {
     if (-not (Get-Command $tool -ErrorAction SilentlyContinue)) { throw "$tool is required and must be on PATH." }
 }
+if (-not $env:DATABASE_PASSWORD) { throw "Set DATABASE_PASSWORD in the environment before backup." }
 if (-not (Test-Path -LiteralPath $DocumentRoot -PathType Container)) { throw "DocumentRoot does not exist." }
 if (-not (Test-Path -LiteralPath $JournalFile -PathType Leaf)) { throw "The independent deletion journal file does not exist." }
 
@@ -59,6 +60,13 @@ if ((Test-PathWithin $backupFull $documentsFull) -or (Test-PathWithin $documents
     (Test-PathWithin $documentsFull $journalDirectory) -or (Test-PathWithin $journalDirectory $documentsFull)) {
     throw "Backup, document, and deletion-journal locations must be separate, independent paths."
 }
+
+# Never snapshot unresolved deletion work: the corresponding tombstone must first reach the sidecar journal.
+$env:PGPASSWORD = $env:DATABASE_PASSWORD
+$pendingSql = "SELECT (SELECT COUNT(*) FROM resume_deletion_jobs WHERE job_status IN ('PENDING','PROCESSING','DEAD_LETTER')) + (SELECT COUNT(*) FROM account_deletion_jobs WHERE owner_id IS NOT NULL AND job_status IN ('PENDING','PROCESSING','DEAD_LETTER'))"
+$pending = & psql.exe --no-psqlrc --tuples-only --no-align --set ON_ERROR_STOP=1 --host=$DatabaseHost --port=$DatabasePort --username=$DatabaseUser --dbname=$Database --command $pendingSql
+if ($LASTEXITCODE -ne 0) { throw "Unable to verify deletion queues; backup refused." }
+if ([int]("$pending".Trim()) -gt 0) { throw "Unresolved individual/account deletion jobs exist. Restart the workers, resolve all jobs, then retry backup." }
 
 $kind = if ($Weekly) { "weekly" } else { "daily" }
 $stamp = (Get-Date).ToUniversalTime().ToString("yyyyMMddTHHmmssZ")
