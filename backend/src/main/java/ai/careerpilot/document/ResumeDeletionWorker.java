@@ -70,8 +70,8 @@ public class ResumeDeletionWorker {
               AND a.status = 'DELETING'
               AND a.storage_key IS NOT NULL
             ORDER BY j.requested_at
-            FOR UPDATE OF j SKIP LOCKED
             LIMIT 1
+            FOR UPDATE OF j SKIP LOCKED
             """, (rs, row) -> new DeletionJob(
                 rs.getObject("operation_id", UUID.class),
                 rs.getObject("asset_id", UUID.class),
