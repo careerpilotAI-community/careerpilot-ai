@@ -44,6 +44,16 @@ if (Test-PathWithin $backupFull $repoRoot -or Test-PathWithin $documentsFull $re
     Test-PathWithin $journalDirectory $repoRoot) {
     throw "Backup, document, and journal paths must be outside the Git repository."
 }
+if (-not (Get-Command "Get-BitLockerVolume" -ErrorAction SilentlyContinue)) {
+    throw "BitLocker status cannot be verified. Use an encrypted Windows volume and verify it before backup."
+}
+foreach ($path in @($backupFull, $documentsFull, $journalDirectory)) {
+    $drive = [IO.Path]::GetPathRoot($path)
+    $volume = Get-BitLockerVolume -MountPoint $drive -ErrorAction Stop
+    if ($volume.ProtectionStatus -ne "On") {
+        throw "Backup, application-data, and deletion-journal volumes must have BitLocker protection enabled."
+    }
+}
 if ((Test-PathWithin $backupFull $documentsFull) -or (Test-PathWithin $documentsFull $backupFull) -or
     (Test-PathWithin $backupFull $journalDirectory) -or (Test-PathWithin $journalDirectory $backupFull) -or
     (Test-PathWithin $documentsFull $journalDirectory) -or (Test-PathWithin $journalDirectory $documentsFull)) {
