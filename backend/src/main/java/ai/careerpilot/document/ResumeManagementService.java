@@ -147,7 +147,7 @@ public class ResumeManagementService {
     private void markUploadAttemptTerminal(String key, String reason) {
         independentTransactions.executeWithoutResult(status -> jdbc.update("""
             UPDATE resume_upload_cleanup_jobs
-            SET reason_code=?, expires_at=CURRENT_TIMESTAMP + INTERVAL '24 hours'
+            SET job_status='PENDING', reason_code=?, expires_at=CURRENT_TIMESTAMP + INTERVAL '24 hours', next_attempt_at=CURRENT_TIMESTAMP
             WHERE storage_key=? AND job_status='IN_PROGRESS'
             """, reason, key));
     }
