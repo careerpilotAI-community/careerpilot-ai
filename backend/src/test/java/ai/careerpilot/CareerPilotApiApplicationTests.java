@@ -5,6 +5,8 @@ import ai.careerpilot.document.MalwareScanner;
 import ai.careerpilot.document.DocumentStorage;
 import ai.careerpilot.document.ResumeDeletionWorker;
 import ai.careerpilot.document.ResumeUploadRetentionWorker;
+import ai.careerpilot.security.AccountDeletionWorker;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import ai.careerpilot.persistence.entity.UserEntity;
 import ai.careerpilot.persistence.repository.JobRepository;
 import ai.careerpilot.persistence.repository.UserRepository;
@@ -43,7 +45,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@SpringBootTest(properties = {"app.registration.enabled=true", "app.documents.cleanup.scheduling-enabled=false", "app.documents.retention.scheduling-enabled=false"})
+@SpringBootTest(properties = {"app.registration.enabled=true", "app.documents.cleanup.scheduling-enabled=false", "app.documents.retention.scheduling-enabled=false", "app.account-deletion.scheduling-enabled=false"})
 @AutoConfigureMockMvc
 @Testcontainers
 class CareerPilotApiApplicationTests {
@@ -81,6 +83,12 @@ class CareerPilotApiApplicationTests {
     private ResumeUploadRetentionWorker resumeUploadRetentionWorker;
 
     @Autowired
+    private AccountDeletionWorker accountDeletionWorker;
+
+    @Autowired
+    private PasswordEncoder passwordEncoder;
+
+    @Autowired
     private DocumentStorage documentStorage;
 
     @MockBean
@@ -90,7 +98,7 @@ class CareerPilotApiApplicationTests {
     void contextLoadsAfterFreshFlywayMigration() {
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT version FROM flyway_schema_history WHERE success = true ORDER BY installed_rank DESC LIMIT 1",
-                String.class)).isEqualTo("6");
+                String.class)).isEqualTo("7");
     }
 
 
@@ -266,8 +274,8 @@ class CareerPilotApiApplicationTests {
     @Test
     void resumeUploadIsScannedAndDownloadsAreOwnerScoped() throws Exception {
         when(malwareScanner.scan(any(InputStream.class))).thenReturn(new MalwareScanner.ScanResult(true, "CLEAN"));
-        UserEntity owner=userRepository.saveAndFlush(new UserEntity("resume-owner@example.com","test-only-password-hash"));
-        UserEntity other=userRepository.saveAndFlush(new UserEntity("resume-other@example.com","test-only-password-hash"));
+        UserEntity owner=activeUser("resume-owner@example.com");
+        UserEntity other=activeUser("resume-other@example.com");
         byte[] pdf;
         try(PDDocument document=new PDDocument(); ByteArrayOutputStream output=new ByteArrayOutputStream()) {
             document.addPage(new PDPage()); document.save(output); pdf=output.toByteArray();
@@ -291,7 +299,7 @@ class CareerPilotApiApplicationTests {
     @Test
     void resumeUploadFailsClosedWhenMalwareScannerIsUnavailable() throws Exception {
         when(malwareScanner.scan(any(InputStream.class))).thenThrow(new java.io.IOException("scanner unavailable"));
-        UserEntity owner=userRepository.saveAndFlush(new UserEntity("resume-scan-failure@example.com","test-only-password-hash"));
+        UserEntity owner=activeUser("resume-scan-failure@example.com");
         byte[] pdf;
         try(PDDocument document=new PDDocument(); ByteArrayOutputStream output=new ByteArrayOutputStream()) {
             document.addPage(new PDPage()); document.save(output); pdf=output.toByteArray();
@@ -318,8 +326,7 @@ class CareerPilotApiApplicationTests {
     @Test
     void malwareRejectedUploadGetsTwentyFourHourCleanupDeadline() throws Exception {
         when(malwareScanner.scan(any(InputStream.class))).thenReturn(new MalwareScanner.ScanResult(false, "INFECTED"));
-        UserEntity owner = userRepository.saveAndFlush(new UserEntity(
-            "resume-malware-" + UUID.randomUUID() + "@example.com", "test-only-password-hash"));
+        UserEntity owner = activeUser("resume-malware-" + UUID.randomUUID() + "@example.com");
         byte[] pdf;
         try (PDDocument document = new PDDocument(); ByteArrayOutputStream output = new ByteArrayOutputStream()) {
             document.addPage(new PDPage());
@@ -382,8 +389,8 @@ class CareerPilotApiApplicationTests {
     @Test
     void resumeDeletionImmediatelyRevokesAccessAndQueuesDurableCleanup() throws Exception {
         when(malwareScanner.scan(any(InputStream.class))).thenReturn(new MalwareScanner.ScanResult(true, "CLEAN"));
-        UserEntity owner=userRepository.saveAndFlush(new UserEntity("resume-delete-owner-" + UUID.randomUUID() + "@example.com","test-only-password-hash"));
-        UserEntity other=userRepository.saveAndFlush(new UserEntity("resume-delete-other-" + UUID.randomUUID() + "@example.com","test-only-password-hash"));
+        UserEntity owner=activeUser("resume-delete-owner-" + UUID.randomUUID() + "@example.com");
+        UserEntity other=activeUser("resume-delete-other-" + UUID.randomUUID() + "@example.com");
         byte[] pdf;
         try(PDDocument document=new PDDocument(); ByteArrayOutputStream output=new ByteArrayOutputStream()) {
             document.addPage(new PDPage()); document.save(output); pdf=output.toByteArray();
@@ -436,7 +443,7 @@ class CareerPilotApiApplicationTests {
         // Keep this test focused on the job it creates below.
         jdbcTemplate.update("DELETE FROM resume_deletion_jobs");
         when(malwareScanner.scan(any(InputStream.class))).thenReturn(new MalwareScanner.ScanResult(true, "CLEAN"));
-        UserEntity owner=userRepository.saveAndFlush(new UserEntity("resume-worker-" + UUID.randomUUID() + "@example.com","test-only-password-hash"));
+        UserEntity owner=activeUser("resume-worker-" + UUID.randomUUID() + "@example.com");
         byte[] pdf;
         try(PDDocument document=new PDDocument(); ByteArrayOutputStream output=new ByteArrayOutputStream()) {
             document.addPage(new PDPage()); document.save(output); pdf=output.toByteArray();
@@ -461,5 +468,144 @@ class CareerPilotApiApplicationTests {
         assertThat(jdbcTemplate.queryForObject("SELECT original_filename FROM resume_assets WHERE id=?",String.class,id)).isNull();
         assertThat(jdbcTemplate.queryForObject("SELECT job_status FROM resume_deletion_jobs WHERE asset_id=?",String.class,id)).isEqualTo("COMPLETED");
         assertThat(jdbcTemplate.queryForObject("SELECT completed_at FROM resume_deletion_jobs WHERE asset_id=?",java.sql.Timestamp.class,id)).isNotNull();
+    }
+
+    private UserEntity activeUser(String email) {
+        UserEntity account = new UserEntity(email, "test-only-password-hash");
+        account.setAccountStatus("ACTIVE");
+        return userRepository.saveAndFlush(account);
+    }
+
+    @Test
+    void accountDeletionRequiresMatchingEmailPasswordAndCsrf() throws Exception {
+        UserEntity owner = new UserEntity(
+            "account-confirm-" + UUID.randomUUID() + "@example.com",
+            passwordEncoder.encode("account-delete-test-password"));
+        owner.setAccountStatus("ACTIVE");
+        owner = userRepository.saveAndFlush(owner);
+        String email = owner.getEmail();
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete("/api/auth/account")
+                .with(user(email))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {"confirmationEmail":"different@example.com","password":"account-delete-test-password"}
+                    """))
+            .andExpect(status().isForbidden());
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete("/api/auth/account")
+                .with(user(email)).with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {"confirmationEmail":"%s","password":"wrong-password"}
+                    """.formatted(email)))
+            .andExpect(status().isBadRequest());
+
+        assertThat(userRepository.findByEmail(email)).isPresent();
+        assertThat(jdbcTemplate.queryForObject(
+            "SELECT account_status FROM users WHERE id=?", String.class, owner.getId())).isEqualTo("ACTIVE");
+    }
+
+    @Test
+    void accountDeletionRevokesSessionsAndRemovesOwnedDataAfterVerifiedStorageCleanup() throws Exception {
+        jdbcTemplate.update("DELETE FROM account_deletion_jobs");
+        when(malwareScanner.scan(any(InputStream.class))).thenReturn(new MalwareScanner.ScanResult(true, "CLEAN"));
+        String email = "account-delete-" + UUID.randomUUID() + "@example.com";
+        UserEntity owner = new UserEntity(email, passwordEncoder.encode("account-delete-test-password"));
+        owner.setAccountStatus("ACTIVE");
+        owner = userRepository.saveAndFlush(owner);
+
+        byte[] pdf;
+        try (PDDocument document = new PDDocument(); ByteArrayOutputStream output = new ByteArrayOutputStream()) {
+            document.addPage(new PDPage());
+            document.save(output);
+            pdf = output.toByteArray();
+        }
+        var uploaded = mockMvc.perform(multipart("/api/resumes")
+                .file(new MockMultipartFile("file", "account-resume.pdf", "application/pdf", pdf))
+                .param("kind", "ORIGINAL").with(user(email)).with(csrf()))
+            .andExpect(status().isCreated()).andReturn();
+        UUID resumeId = UUID.fromString(com.jayway.jsonpath.JsonPath.read(
+            uploaded.getResponse().getContentAsString(), "$.id"));
+        String storageKey = jdbcTemplate.queryForObject(
+            "SELECT storage_key FROM resume_assets WHERE id=?", String.class, resumeId);
+        assertThat(documentStorage.exists(storageKey)).isTrue();
+
+        String rejectedUploadKey = UUID.randomUUID().toString();
+        documentStorage.storeQuarantined(new java.io.ByteArrayInputStream(new byte[] {4, 5, 6}), rejectedUploadKey);
+        jdbcTemplate.update("""
+            INSERT INTO resume_upload_cleanup_jobs
+                (operation_id, owner_id, storage_key, job_status, reason_code,
+                 created_at, expires_at, attempt_count, next_attempt_at)
+            VALUES (?, ?, ?, 'PENDING', 'UPLOAD_FAILED',
+                    CURRENT_TIMESTAMP, CURRENT_TIMESTAMP + INTERVAL '24 hours', 0, CURRENT_TIMESTAMP)
+            """, UUID.randomUUID(), owner.getId(), rejectedUploadKey);
+        assertThat(documentStorage.exists(rejectedUploadKey)).isTrue();
+
+        JobEntity job = jobRepository.saveAndFlush(new JobEntity(owner.getId(), "Java Engineer", "Example Ltd"));
+        jdbcTemplate.update("""
+            INSERT INTO applications (id, user_id, job_id, status)
+            VALUES (?, ?, ?, 'APPLIED')
+            """, UUID.randomUUID(), owner.getId(), job.getId());
+        jdbcTemplate.update("""
+            INSERT INTO career_profiles (id, user_id, preferences_json)
+            VALUES (?, ?, '{}'::jsonb)
+            """, UUID.randomUUID(), owner.getId());
+        jdbcTemplate.update("""
+            INSERT INTO profile_skills (id, user_id, skill_name, normalized_skill_name)
+            VALUES (?, ?, 'Java', 'java')
+            """, UUID.randomUUID(), owner.getId());
+
+        String sessionId = UUID.randomUUID().toString();
+        jdbcTemplate.update("""
+            INSERT INTO spring_session
+                (primary_id, session_id, creation_time, last_access_time,
+                 max_inactive_interval, expiry_time, principal_name)
+            VALUES (?, ?, ?, ?, 1800, ?, ?)
+            """, sessionId, sessionId, System.currentTimeMillis(), System.currentTimeMillis(),
+            System.currentTimeMillis() + 1800000, email);
+        assertThat(jdbcTemplate.queryForObject(
+            "SELECT COUNT(*) FROM spring_session WHERE principal_name=?", Integer.class, email)).isGreaterThan(0);
+
+        var response = mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete("/api/auth/account")
+                .with(user(email)).with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {"confirmationEmail":"%s","password":"account-delete-test-password"}
+                    """.formatted(email)))
+            .andExpect(status().isAccepted())
+            .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.status").value("DELETION_PENDING"))
+            .andReturn();
+        UUID operationId = UUID.fromString(com.jayway.jsonpath.JsonPath.read(
+            response.getResponse().getContentAsString(), "$.operationId"));
+
+        assertThat(jdbcTemplate.queryForObject(
+            "SELECT account_status FROM users WHERE id=?", String.class, owner.getId())).isEqualTo("DELETION_PENDING");
+        assertThat(jdbcTemplate.queryForObject(
+            "SELECT COUNT(*) FROM spring_session WHERE principal_name=?", Integer.class, email)).isZero();
+        assertThat(jdbcTemplate.queryForObject(
+            "SELECT COUNT(*) FROM account_deletion_jobs WHERE operation_id=? AND job_status='PENDING'",
+            Integer.class, operationId)).isEqualTo(1);
+
+        assertThat(accountDeletionWorker.processNextJob()).isTrue();
+        assertThat(documentStorage.exists(storageKey)).isFalse();
+        assertThat(documentStorage.exists(rejectedUploadKey)).isFalse();
+        assertThat(userRepository.findByEmail(email)).isEmpty();
+        assertThat(jdbcTemplate.queryForObject(
+            "SELECT COUNT(*) FROM jobs WHERE user_id=?", Integer.class, owner.getId())).isZero();
+        assertThat(jdbcTemplate.queryForObject(
+            "SELECT COUNT(*) FROM applications WHERE user_id=?", Integer.class, owner.getId())).isZero();
+        assertThat(jdbcTemplate.queryForObject(
+            "SELECT COUNT(*) FROM career_profiles WHERE user_id=?", Integer.class, owner.getId())).isZero();
+        assertThat(jdbcTemplate.queryForObject(
+            "SELECT COUNT(*) FROM profile_skills WHERE user_id=?", Integer.class, owner.getId())).isZero();
+        assertThat(jdbcTemplate.queryForObject(
+            "SELECT job_status FROM account_deletion_jobs WHERE operation_id=?", String.class, operationId))
+            .isEqualTo("COMPLETED");
+        assertThat(jdbcTemplate.queryForObject(
+            "SELECT owner_id FROM account_deletion_jobs WHERE operation_id=?", UUID.class, operationId)).isNull();
+        assertThat(jdbcTemplate.queryForObject(
+            "SELECT COUNT(*) FROM account_deletion_audit_events WHERE event_type='ACCOUNT_DELETION_COMPLETED'",
+            Integer.class)).isGreaterThan(0);
     }
 }

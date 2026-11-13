@@ -38,7 +38,7 @@ public class ResumeManagementService {
     }
     @Transactional
     public AssetResponse upload(String email, MultipartFile file, String kind) {
-        UUID owner=owner(email);
+        UUID owner=ownerForWrite(email);
         if (file==null || file.isEmpty() || file.getSize()>ResumeFileValidator.MAX_BYTES)
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"File must be between 1 byte and 10 MiB.");
         if (!"ORIGINAL".equals(kind) && !"TAILORED".equals(kind))
@@ -56,7 +56,7 @@ public class ResumeManagementService {
         if(current+bytes.length>userQuota || deployment+bytes.length>deploymentQuota)
             throw new ResponseStatusException(HttpStatus.INSUFFICIENT_STORAGE,"Document storage quota exceeded.");
         String key=UUID.randomUUID().toString(); String verdict;
-        createUploadCleanupAttempt(key);
+        createUploadCleanupAttempt(owner, key);
         try {
             storage.storeQuarantined(new ByteArrayInputStream(bytes),key);
             MalwareScanner.ScanResult scan=scanner.scan(new ByteArrayInputStream(bytes));
@@ -67,7 +67,7 @@ public class ResumeManagementService {
             ResumeAssetEntity saved=assets.save(new ResumeAssetEntity(owner,kind,filename,valid.mediaType(),bytes.length,checksum,key,verdict));
             jdbc.update("""
                 UPDATE resume_upload_cleanup_jobs
-                SET job_status='COMPLETED', reason_code='UPLOAD_ACCEPTED', storage_key=NULL, completed_at=CURRENT_TIMESTAMP, processing_started_at=NULL
+                SET job_status='COMPLETED', reason_code='UPLOAD_ACCEPTED', storage_key=NULL, owner_id=NULL, completed_at=CURRENT_TIMESTAMP, processing_started_at=NULL
                 WHERE storage_key=? AND job_status='IN_PROGRESS'
                 """, key);
             return response(saved);
@@ -83,7 +83,7 @@ public class ResumeManagementService {
     }
     @Transactional
     public DeletionResponse requestDeletion(String email, UUID id) {
-        UUID owner=owner(email);
+        UUID owner=ownerForWrite(email);
         List<String> states=jdbc.query(
             "SELECT status FROM resume_assets WHERE id = ? AND user_id = ? FOR UPDATE",
             (rs,row)->rs.getString("status"), id, owner);
@@ -123,8 +123,21 @@ public class ResumeManagementService {
         catch(IOException ex) { throw new ResponseStatusException(HttpStatus.NOT_FOUND); }
     }
     private UUID owner(String email) {
-        return users.findByEmail(email.trim().toLowerCase(Locale.ROOT)).map(UserEntity::getId)
-            .orElseThrow(()->new ResponseStatusException(HttpStatus.UNAUTHORIZED));
+        var rows = jdbc.query("""
+            SELECT id FROM users
+            WHERE email=? AND account_status='ACTIVE'
+            """, (rs, row) -> rs.getObject("id", UUID.class), email.trim().toLowerCase(Locale.ROOT));
+        if (rows.isEmpty()) throw new ResponseStatusException(HttpStatus.UNAUTHORIZED);
+        return rows.get(0);
+    }
+    private UUID ownerForWrite(String email) {
+        var rows = jdbc.query("""
+            SELECT id FROM users
+            WHERE email=? AND account_status='ACTIVE'
+            FOR SHARE
+            """, (rs, row) -> rs.getObject("id", UUID.class), email.trim().toLowerCase(Locale.ROOT));
+        if (rows.isEmpty()) throw new ResponseStatusException(HttpStatus.UNAUTHORIZED);
+        return rows.get(0);
     }
     private String safeFilename(String input) {
         String name=input==null?"resume":input.replaceAll("[\\r\\n\\\\/\\u0000-\\u001f]","_").trim();
@@ -136,13 +149,13 @@ public class ResumeManagementService {
         return new AssetResponse(a.getId(),a.getAssetKind(),a.getOriginalFilename(),a.getMediaType(),
             a.getSizeBytes(),a.getChecksumSha256(),a.getStatus(),a.getCreatedAt());
     }
-    private void createUploadCleanupAttempt(String key) {
+    private void createUploadCleanupAttempt(UUID ownerId, String key) {
         independentTransactions.executeWithoutResult(status -> jdbc.update("""
             INSERT INTO resume_upload_cleanup_jobs
-                (operation_id, storage_key, job_status, reason_code, created_at, expires_at, attempt_count, next_attempt_at)
-            VALUES (?, ?, 'IN_PROGRESS', 'UPLOAD_IN_PROGRESS', CURRENT_TIMESTAMP,
+                (operation_id, owner_id, storage_key, job_status, reason_code, created_at, expires_at, attempt_count, next_attempt_at)
+            VALUES (?, ?, ?, 'IN_PROGRESS', 'UPLOAD_IN_PROGRESS', CURRENT_TIMESTAMP,
                     CURRENT_TIMESTAMP + INTERVAL '24 hours', 0, CURRENT_TIMESTAMP)
-            """, UUID.randomUUID(), key));
+            """, UUID.randomUUID(), ownerId, key));
     }
     private void markUploadAttemptTerminal(String key, String reason) {
         independentTransactions.executeWithoutResult(status -> jdbc.update("""
