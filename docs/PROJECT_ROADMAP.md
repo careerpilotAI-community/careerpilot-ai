@@ -250,3 +250,17 @@ See [File Storage Architecture](architecture/storage/FILE_STORAGE_ARCHITECTURE.m
 **Not yet verified:** target-host Windows edition and BitLocker state; escrow retrieval; recovery-protector rotation; controlled test-volume recovery; effective NTFS ACLs; and the full isolated PostgreSQL + document restore drill. This documentation milestone does not make synthetic-data testing ready or authorize real personal-resume use. Synthetic-data local testing remains pending; real personal-resume use remains NOT SAFE / not approved; hosted/public deployment remains NOT READY.
 
 **Next milestones remain separate:** Branch 40 verifies Windows ACLs, scanner fail-closed behavior, privacy-safe logs, and lifecycle security regressions. Branch 41 performs integrated synthetic-data local validation and records a separate real-resume sign-off only after every required gate is evidenced.
+
+## 22. Branch 40 — security and privacy verification
+
+Branch 40 adds automated regression coverage and an explicit evidence boundary for existing controls. It does not introduce application features or change runtime behavior.
+
+- Adds deterministic tests for ClamAV INSTREAM clean, infected, unknown, and connection-closed verdict handling using a local TCP stub.
+- Adds tests proving the local development scanner accepts only the synthetic fixture marker within its inspected prefix.
+- Retains the existing PostgreSQL-backed lifecycle and authorization regression suite for CSRF, owner-scoped access, fail-closed scanner outages, upload retention, individual deletion, and account deletion.
+- Records the current metadata-only deletion-journal privacy assertions and distinguishes them from a complete application-log review.
+- Defines target-host NTFS ACL, BitLocker, recovery-key escrow, live ClamAV, and full restore evidence that cannot be established by CI.
+
+See [Branch 40 Security & Privacy Verification](architecture/security/BRANCH_40_SECURITY_VERIFICATION.md).
+
+**Readiness remains unchanged:** synthetic-data local testing is pending; real personal-resume use remains NOT SAFE / not approved; hosted/public deployment remains NOT READY. Branch 41 is the separate integrated local validation milestone and must not be treated as passed until its host-level and restore evidence is recorded.
