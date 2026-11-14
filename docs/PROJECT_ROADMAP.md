@@ -264,3 +264,17 @@ Branch 40 adds automated regression coverage and an explicit evidence boundary f
 See [Branch 40 Security & Privacy Verification](architecture/security/BRANCH_40_SECURITY_VERIFICATION.md).
 
 **Readiness remains unchanged:** synthetic-data local testing is pending; real personal-resume use remains NOT SAFE / not approved; hosted/public deployment remains NOT READY. Branch 41 is the separate integrated local validation milestone and must not be treated as passed until its host-level and restore evidence is recorded.
+
+
+## 23. Branch 41 — integrated synthetic-data local validation
+
+Branch 41 defines the operator-run validation procedure for the first integrated local workflow after storage, lifecycle, backup, encryption, and security verification milestones.
+
+- Adds a synthetic-only PDF fixture generator whose PDF comment contains the exact marker accepted by the local development scanner. The generated fixture contains no personal information and is intended only for the `local` Spring profile.
+- Documents clean local build/test commands, PostgreSQL and backend startup, synthetic authentication and resume lifecycle checks, cross-user denial, scanner behavior, host-level ACL/encryption/recovery evidence, and an isolated PostgreSQL + filesystem restore with current deletion-journal replay.
+- Separates evidence that can be collected in CI from checks requiring the owner's Windows host, Docker daemon, recovery escrow, and operator-run restore drill.
+- Does not change application runtime behavior, database schema, frontend behavior, scanner policy, or deployment architecture.
+
+See [Branch 41 Integrated Synthetic-Data Local Validation](implementation/BRANCH_41_SYNTHETIC_LOCAL_VALIDATION.md) and [Synthetic Resume Fixture Generator](../scripts/validation/New-SyntheticResume.ps1).
+
+**Readiness is not granted by this branch or a green CI run.** At creation, target-host and end-to-end operator evidence is NOT VERIFIED. Synthetic-data local validation remains pending until the complete runbook passes. Real personal-resume use remains NOT SAFE / not approved. Hosted/public deployment remains NOT READY.
