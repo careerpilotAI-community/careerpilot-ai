@@ -76,20 +76,34 @@ if (-not (Test-Path -LiteralPath $DocumentRoot -PathType Container)) { throw "Do
 if (-not (Test-Path -LiteralPath $JournalFile -PathType Leaf)) { throw "The independent deletion journal file does not exist." }
 
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "../..")).Path
-New-Item -ItemType Directory -Force -Path $BackupRoot | Out-Null
-$backupFull = (Resolve-Path $BackupRoot).Path
+$backupCandidate = [IO.Path]::GetFullPath($BackupRoot).TrimEnd("\")
 $documentsFull = (Resolve-Path $DocumentRoot).Path
 $journalFull = (Resolve-Path $JournalFile).Path
 $journalDirectory = (Resolve-Path (Split-Path -Parent $JournalFile)).Path
 
+# Validate the requested backup location before creating it, so an invalid path
+# inside the repository or overlapping private storage causes no filesystem mutation.
+if ((Test-PathWithin $backupCandidate $repoRoot) -or (Test-PathWithin $documentsFull $repoRoot) -or
+    (Test-PathWithin $journalDirectory $repoRoot)) {
+    throw "Backup, document, and journal paths must be outside the Git repository."
+}
+if ((Test-PathWithin $backupCandidate $documentsFull) -or (Test-PathWithin $documentsFull $backupCandidate) -or
+    (Test-PathWithin $backupCandidate $journalDirectory) -or (Test-PathWithin $journalDirectory $backupCandidate) -or
+    (Test-PathWithin $documentsFull $journalDirectory) -or (Test-PathWithin $journalDirectory $documentsFull)) {
+    throw "Backup, document, and deletion-journal locations must be separate, independent paths."
+}
+
+New-Item -ItemType Directory -Force -Path $backupCandidate | Out-Null
+Assert-NoReparsePoints $backupCandidate
+$backupFull = (Resolve-Path $backupCandidate).Path
 Assert-NoReparsePoints $backupFull
 Assert-NoReparsePoints $documentsFull
 Assert-NoReparsePoints $journalFull
 Assert-DocumentTree $documentsFull
 
-if ((Test-PathWithin $backupFull $repoRoot) -or (Test-PathWithin $documentsFull $repoRoot) -or
-    (Test-PathWithin $journalDirectory $repoRoot)) {
-    throw "Backup, document, and journal paths must be outside the Git repository."
+if ((Test-PathWithin $backupFull $repoRoot) -or (Test-PathWithin $backupFull $documentsFull) -or
+    (Test-PathWithin $backupFull $journalDirectory)) {
+    throw "Resolved backup path must remain outside the repository and separate from application storage and journal paths."
 }
 if (-not (Get-Command "Get-BitLockerVolume" -ErrorAction SilentlyContinue)) {
     throw "BitLocker status cannot be verified. Use an encrypted Windows volume and verify it before backup."
