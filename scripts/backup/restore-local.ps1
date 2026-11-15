@@ -41,7 +41,9 @@ function Assert-NoReparsePoints([string]$Path) {
     }
 }
 function Assert-Manifest([string]$BackupDirectory, $Manifest) {
-    if ($Manifest.schemaVersion -ne 1 -or $Manifest.maximumBackupErasureDays -ne 28) {
+    if ($Manifest.schemaVersion -ne 1 -or $Manifest.maximumBackupErasureDays -ne 28 -or
+        $Manifest.dailyRecoveryPoints -ne 7 -or $Manifest.weeklyRecoveryPoints -ne 4 -or
+        $Manifest.kind -notin @("daily", "weekly")) {
         throw "Unsupported backup manifest or retention policy."
     }
     if ($Manifest.backupId -ne (Split-Path -Leaf $BackupDirectory) -or
@@ -215,11 +217,13 @@ try {
     if (-not (Get-Command "Get-BitLockerVolume" -ErrorAction SilentlyContinue)) {
         throw "BitLocker status cannot be verified for restored data paths."
     }
-    foreach ($path in @((Split-Path -Parent $targetDocumentFull), $targetJournalParent)) {
+    foreach ($path in @($backupFull, $currentJournalFull, (Split-Path -Parent $targetDocumentFull), $targetJournalParent)) {
         $resolved = (Resolve-Path -LiteralPath $path).Path
         $drive = [IO.Path]::GetPathRoot($resolved)
         $volume = Get-BitLockerVolume -MountPoint $drive -ErrorAction Stop
-        if ($volume.ProtectionStatus -ne "On") { throw "Restore target document and journal volumes must be BitLocker protected." }
+        if ($volume.ProtectionStatus -ne "On") {
+            throw "Backup, current deletion journal, and restore target volumes must be BitLocker protected."
+        }
     }
 
     & pg_restore.exe --exit-on-error --single-transaction --host=$DatabaseHost --port=$DatabasePort --username=$DatabaseUser --dbname=$TargetDatabase --no-owner --no-acl $dump
@@ -271,6 +275,7 @@ try {
         $env:APP_SCHEDULING_ENABLED = $oldSchedulingEnabled
     }
 
+    $journalOperationIds = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
     $entries = Get-Content -LiteralPath $TargetJournalFile | Where-Object { $_.Trim().Length -gt 0 } | ForEach-Object {
         $entry = $_ | ConvertFrom-Json
         $parsedOperation = [guid]::Empty
@@ -279,6 +284,13 @@ try {
         if ($entry.schemaVersion -ne 1 -or -not [guid]::TryParse($entry.operationId, [ref]$parsedOperation) -or
             -not [guid]::TryParse($entry.ownerId, [ref]$parsedOwner)) {
             throw "Deletion journal contains an invalid or unsupported record; restore halted."
+        }
+        if (-not $journalOperationIds.Add($parsedOperation.ToString())) {
+            throw "Deletion journal contains a duplicate operation ID; restore halted."
+        }
+        $recordedAt = [DateTimeOffset]::MinValue
+        if (-not [DateTimeOffset]::TryParse([string]$entry.recordedAt, [ref]$recordedAt)) {
+            throw "Deletion journal contains an invalid timestamp; restore halted."
         }
         if ($entry.deletionType -eq "ASSET") {
             if (-not [guid]::TryParse($entry.assetId, [ref]$parsedAsset)) { throw "Asset tombstone is missing a valid asset ID." }
