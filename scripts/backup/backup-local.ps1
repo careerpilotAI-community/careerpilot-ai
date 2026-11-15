@@ -87,8 +87,8 @@ Assert-NoReparsePoints $documentsFull
 Assert-NoReparsePoints $journalFull
 Assert-DocumentTree $documentsFull
 
-if (Test-PathWithin $backupFull $repoRoot -or Test-PathWithin $documentsFull $repoRoot -or
-    Test-PathWithin $journalDirectory $repoRoot) {
+if ((Test-PathWithin $backupFull $repoRoot) -or (Test-PathWithin $documentsFull $repoRoot) -or
+    (Test-PathWithin $journalDirectory $repoRoot)) {
     throw "Backup, document, and journal paths must be outside the Git repository."
 }
 if (-not (Get-Command "Get-BitLockerVolume" -ErrorAction SilentlyContinue)) {
