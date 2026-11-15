@@ -53,3 +53,12 @@ jobs:
         run: npm run test:run
       - name: Build frontend
         run: npm run build
+
+  backup-restore-safety:
+    name: Backup / Restore Safety (PowerShell)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Parse scripts and verify safety guards
+        shell: pwsh
+        run: ./scripts/validation/Test-BackupRestoreSafety.ps1
