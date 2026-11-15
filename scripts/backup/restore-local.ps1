@@ -95,13 +95,13 @@ function Assert-Manifest([string]$BackupDirectory, $Manifest) {
     }
 }
 function Invoke-Psql([string]$Sql, [switch]$TuplesOnly) {
-    $args = @("--no-psqlrc", "--set", "ON_ERROR_STOP=1", "--host=$DatabaseHost", "--port=$DatabasePort",
+    $psqlArgs = @("--no-psqlrc", "--set", "ON_ERROR_STOP=1", "--host=$DatabaseHost", "--port=$DatabasePort",
         "--username=$DatabaseUser", "--dbname=$TargetDatabase", "--command", $Sql)
     if ($TuplesOnly) {
-        $args = @("--no-psqlrc", "--tuples-only", "--no-align", "--set", "ON_ERROR_STOP=1",
+        $psqlArgs = @("--no-psqlrc", "--tuples-only", "--no-align", "--set", "ON_ERROR_STOP=1",
             "--host=$DatabaseHost", "--port=$DatabasePort", "--username=$DatabaseUser", "--dbname=$TargetDatabase", "--command", $Sql)
     }
-    $output = & psql.exe @args
+    $output = & psql.exe @psqlArgs
     if ($LASTEXITCODE -ne 0) { throw "PostgreSQL restore replay or verification failed." }
     return $output
 }
@@ -174,6 +174,7 @@ $sourceDocuments = Join-Path $backupFull "documents"
 $previousPgPassword = $env:PGPASSWORD
 $createdDocumentRoot = $false
 $createdTargetJournal = $false
+$restoreCompleted = $false
 try {
     $env:PGPASSWORD = $env:DATABASE_PASSWORD
 
@@ -349,17 +350,24 @@ COMMIT;
         }
     }
 
+    $restoreCompleted = $true
     Write-Output "Restore and deletion-journal replay completed. Keep the application stopped until ownership and authenticated access checks pass."
     Write-Output "Recovery point: $($manifest.backupId) ($($manifest.createdUtc))"
     Write-Output "Deletion tombstones replayed: $($entries.Count)"
     Write-Output "Restored assets reconciled: $($referenced.Count)"
 }
 finally {
-    $env:PGPASSWORD = $previousPgPassword
-    if ($createdTargetJournal -and (Test-Path -LiteralPath $TargetJournalFile)) {
-        Remove-Item -LiteralPath $TargetJournalFile -Force
+    if ($null -eq $previousPgPassword) {
+        Remove-Item Env:PGPASSWORD -ErrorAction SilentlyContinue
+    } else {
+        $env:PGPASSWORD = $previousPgPassword
     }
-    if ($createdDocumentRoot -and (Test-Path -LiteralPath $TargetDocumentRoot)) {
-        Remove-Item -LiteralPath $TargetDocumentRoot -Recurse -Force
+    if (-not $restoreCompleted) {
+        if ($createdTargetJournal -and (Test-Path -LiteralPath $TargetJournalFile)) {
+            Remove-Item -LiteralPath $TargetJournalFile -Force
+        }
+        if ($createdDocumentRoot -and (Test-Path -LiteralPath $TargetDocumentRoot)) {
+            Remove-Item -LiteralPath $TargetDocumentRoot -Recurse -Force
+        }
     }
 }
