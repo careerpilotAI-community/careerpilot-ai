@@ -37,7 +37,7 @@ $checks = @(
     @{ Name = "restore does not invoke pg_restore clean"; Pass = $restore -notmatch '(?im)^\s*&\s*pg_restore\.exe[^\r\n]*--clean' },
     @{ Name = "restore validates manifest path containment"; Pass = $restore.Contains("Test-PathWithin $candidate $BackupDirectory") },
     @{ Name = "restore rejects reparse points"; Pass = $restore.Contains("Assert-NoReparsePoints") },
-    @{ Name = "restore supports existing legacy recovery-point names"; Pass = $restore.Contains("\\d{6}Z|\\d{9}Z-") },
+    @{ Name = "restore supports existing legacy recovery-point names"; Pass = $restore.Contains('\d{6}Z|\d{9}Z-') },
     @{ Name = "restore checks manifest inventory and hashes"; Pass = $restore.Contains("actualFiles") -and $restore.Contains("Get-FileHash") },
     @{ Name = "restore verifies database target is empty"; Pass = $restore.Contains('$objectCountSql') -and $restore.Contains("Target database is not empty") },
     @{ Name = "restore reconciles document metadata and files"; Pass = $restore.Contains("Restored assets reconciled") -and $restore.Contains("checksum_sha256") },
