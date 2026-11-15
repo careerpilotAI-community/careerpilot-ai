@@ -137,7 +137,7 @@ try {
     $stageCreated = $false
 
     # Enforce the approved maximum age, then retain the newest 7 daily and 4 weekly sets.
-    $all = Get-ChildItem -LiteralPath $backupFull -Directory | Where-Object { $_.Name -match '^(daily|weekly)-\d{8}T(\d{6}Z|\d{9}Z-[0-9a-f]{8}) }
+    $all = Get-ChildItem -LiteralPath $backupFull -Directory | Where-Object { $_.Name -match '^(daily|weekly)-\d{8}T(\d{6}Z|\d{9}Z-[0-9a-f]{8})$' }
     $cutoff = (Get-Date).ToUniversalTime().AddDays(-28)
     foreach ($item in $all) {
         if ($item.LastWriteTimeUtc -lt $cutoff) { Remove-Item -LiteralPath $item.FullName -Recurse -Force }
@@ -165,29 +165,4 @@ finally {
     } else {
         $env:PGPASSWORD = $previousPgPassword
     }
-}
- }
-    $cutoff = (Get-Date).ToUniversalTime().AddDays(-28)
-    foreach ($item in $all) {
-        if ($item.LastWriteTimeUtc -lt $cutoff) { Remove-Item -LiteralPath $item.FullName -Recurse -Force }
-    }
-    foreach ($category in @("daily", "weekly")) {
-        $limit = if ($category -eq "daily") { 7 } else { 4 }
-        $sets = Get-ChildItem -LiteralPath $backupFull -Directory |
-            Where-Object { $_.Name -match "^$category-\d{8}T\d{9}Z-[0-9a-f]{8}$" } |
-            Sort-Object Name -Descending
-        $sets | Select-Object -Skip $limit | ForEach-Object {
-            Remove-Item -LiteralPath $_.FullName -Recurse -Force
-        }
-    }
-    Write-Output "Backup created: $final"
-}
-catch {
-    if ($stageCreated -and $stage -and (Test-Path -LiteralPath $stage)) {
-        Remove-Item -LiteralPath $stage -Recurse -Force
-    }
-    throw
-}
-finally {
-    $env:PGPASSWORD = $previousPgPassword
 }
