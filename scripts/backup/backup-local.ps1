@@ -21,6 +21,14 @@ function Test-PathWithin([string]$Child, [string]$Parent) {
     return $childPath.Equals($parentPath, [StringComparison]::OrdinalIgnoreCase) -or
         $childPath.StartsWith($parentPath + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase)
 }
+function Get-RelativePath([string]$BasePath, [string]$TargetPath) {
+    $base = [IO.Path]::GetFullPath($BasePath).TrimEnd("\") + "\"
+    $target = [IO.Path]::GetFullPath($TargetPath)
+    if (-not $target.StartsWith($base, [StringComparison]::OrdinalIgnoreCase)) {
+        throw "Cannot calculate a relative path outside the base directory."
+    }
+    return $target.Substring($base.Length)
+}
 function Assert-NoReparsePoints([string]$Path) {
     $root = Get-Item -LiteralPath $Path -Force
     $items = @($root)
@@ -141,7 +149,7 @@ try {
     Copy-Item -LiteralPath $journalFull -Destination (Join-Path $stage "account-deletions.jsonl")
     $files = Get-ChildItem -LiteralPath $stage -File -Recurse | ForEach-Object {
         [pscustomobject]@{
-            path = [IO.Path]::GetRelativePath($stage, $_.FullName).Replace("\", "/")
+            path = Get-RelativePath $stage $_.FullName.Replace("\", "/")
             sha256 = (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash
             bytes = $_.Length
         }
