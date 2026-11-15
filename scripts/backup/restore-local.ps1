@@ -169,13 +169,13 @@ if (Test-Path -LiteralPath $TargetJournalFile) {
 if (-not (Test-Path -LiteralPath $targetJournalParent -PathType Container)) {
     throw "TargetJournalFile parent directory must already exist and be independently prepared."
 }
-if (Test-PathWithin $targetDocumentFull $repoRoot -or Test-PathWithin $targetJournalFull $repoRoot -or
-    Test-PathWithin $currentJournalFull $repoRoot -or Test-PathWithin $backupFull $repoRoot -or
-    Test-PathWithin $targetDocumentFull $backupFull -or Test-PathWithin $backupFull $targetDocumentFull -or
-    Test-PathWithin $targetJournalFull $backupFull -or Test-PathWithin $backupFull $targetJournalFull -or
-    Test-PathWithin $currentJournalFull $backupFull -or Test-PathWithin $currentJournalFull $targetDocumentFull -or
-    Test-PathWithin $targetDocumentFull $currentJournalFull -or Test-PathWithin $targetJournalFull $targetDocumentFull -or
-    Test-PathWithin $targetDocumentFull $targetJournalFull -or
+if ((Test-PathWithin $targetDocumentFull $repoRoot) -or (Test-PathWithin $targetJournalFull $repoRoot) -or
+    (Test-PathWithin $currentJournalFull $repoRoot) -or (Test-PathWithin $backupFull $repoRoot) -or
+    (Test-PathWithin $targetDocumentFull $backupFull) -or (Test-PathWithin $backupFull $targetDocumentFull) -or
+    (Test-PathWithin $targetJournalFull $backupFull) -or (Test-PathWithin $backupFull $targetJournalFull) -or
+    (Test-PathWithin $currentJournalFull $backupFull) -or (Test-PathWithin $currentJournalFull $targetDocumentFull) -or
+    (Test-PathWithin $targetDocumentFull $currentJournalFull) -or (Test-PathWithin $targetJournalFull $targetDocumentFull) -or
+    (Test-PathWithin $targetDocumentFull $targetJournalFull) -or
     $targetJournalFull.Equals($currentJournalFull, [StringComparison]::OrdinalIgnoreCase)) {
     throw "Restore targets, source journal, backup media, and repository must be isolated from one another."
 }
