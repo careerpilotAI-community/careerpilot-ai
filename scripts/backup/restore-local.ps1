@@ -87,7 +87,7 @@ function Assert-Manifest([string]$BackupDirectory, $Manifest) {
         }
     }
     $actualFiles = @(Get-ChildItem -LiteralPath $BackupDirectory -File -Recurse -Force |
-        Where-Object { $_.Name -ne "backup-manifest.json" } |
+        Where-Object { $_.FullName -ne (Join-Path $BackupDirectory "backup-manifest.json") } |
         ForEach-Object { [IO.Path]::GetRelativePath($BackupDirectory, $_.FullName).Replace("\", "/") })
     if ($actualFiles.Count -ne $expected.Count) { throw "Backup contains missing or unlisted files." }
     foreach ($actual in $actualFiles) {
