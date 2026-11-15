@@ -14,7 +14,7 @@ foreach ($path in @($backupPath, $restorePath)) {
     $parseErrors = $null
     [System.Management.Automation.Language.Parser]::ParseFile($path, [ref]$tokens, [ref]$parseErrors) | Out-Null
     if ($parseErrors.Count -gt 0) {
-        $messages = ($parseErrors | ForEach-Object { $_.Message }) -join "; "
+        $messages = ($parseErrors | ForEach-Object { "{0}:{1} {2}" -f $_.Extent.StartLineNumber, $_.Extent.StartColumnNumber, $_.Message }) -join "; "
         throw "PowerShell syntax validation failed for $path : $messages"
     }
 }
