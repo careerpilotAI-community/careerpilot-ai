@@ -59,6 +59,8 @@ The target document directory and target journal file must not exist before rest
 
 The selected backup directory is integrity-checked and rejected if older than 28 days. The manifest must list the complete supported file inventory; paths are checked for traversal, duplicates, unexpected files, reparse points, size mismatches, and SHA-256 mismatches. Legacy recovery-point names created by the previous script remain accepted. The restore process requires the current independent deletion journal, not merely the older journal snapshot stored inside the backup. This is essential: the journal bundled with a recovery point may predate a later deletion.
 
+Before running the example, create the parent folder `D:\CareerPilotRestore` and its `journal` subfolder. Do not create the `documents` destination or the `account-deletions.jsonl` target file. Also create a dedicated empty local PostgreSQL database named `careerpilot_restore`; do not point this at the live `careerpilot` database.
+
 Example:
 
 ```powershell
