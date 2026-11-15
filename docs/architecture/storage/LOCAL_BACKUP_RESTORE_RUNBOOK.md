@@ -61,6 +61,14 @@ The selected backup directory is integrity-checked and rejected if older than 28
 
 Before running the example, create the parent folder `D:\CareerPilotRestore` and its `journal` subfolder. Do not create the `documents` destination or the `account-deletions.jsonl` target file. Also create a dedicated empty local PostgreSQL database named `careerpilot_restore`; do not point this at the live `careerpilot` database.
 
+Before any synthetic recovery drill, run the non-mutating PowerShell syntax and guard checks from the repository root:
+
+```powershell
+.\scripts\validation\Test-BackupRestoreSafety.ps1
+```
+
+These checks do not connect to PostgreSQL or create, modify, or delete backup data. They are a static preflight, not a substitute for the full synthetic restore drill.
+
 Example:
 
 ```powershell
