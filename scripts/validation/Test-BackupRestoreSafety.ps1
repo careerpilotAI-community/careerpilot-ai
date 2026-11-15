@@ -27,6 +27,7 @@ $checks = @(
     @{ Name = "backup refuses an existing staging directory"; Pass = $backup.Contains("refusing to remove or reuse it") },
     @{ Name = "backup validates the private storage layout"; Pass = $backup.Contains("Assert-DocumentTree") -and $backup.Contains("quarantine") -and $backup.Contains("available") },
     @{ Name = "backup validates reparse points"; Pass = $backup.Contains("Assert-NoReparsePoints") },
+    @{ Name = "backup rejects volume-root destinations"; Pass = $backup.Contains("BackupRoot must be a dedicated directory") },
     @{ Name = "backup checks other PostgreSQL sessions"; Pass = $backup.Contains("pg_stat_activity") },
     @{ Name = "backup checks unresolved deletion queues"; Pass = $backup.Contains("resume_deletion_jobs") -and $backup.Contains("account_deletion_jobs") -and $backup.Contains("resume_upload_cleanup_jobs") },
     @{ Name = "backup restores PGPASSWORD"; Pass = $backup.Contains('$previousPgPassword') -and $backup.Contains("Remove-Item Env:PGPASSWORD") },
