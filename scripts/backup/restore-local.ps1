@@ -90,6 +90,13 @@ function Assert-Manifest([string]$BackupDirectory, $Manifest) {
             throw "The coordinated document snapshot is missing a required storage area."
         }
     }
+    $actualDirectories = @(Get-ChildItem -LiteralPath $BackupDirectory -Directory -Recurse -Force |
+        ForEach-Object { [IO.Path]::GetRelativePath($BackupDirectory, $_.FullName).Replace("\", "/") } |
+        Sort-Object)
+    $allowedDirectories = @("documents", "documents/available", "documents/quarantine")
+    if (($actualDirectories -join "|") -ne ($allowedDirectories -join "|")) {
+        throw "Backup contains missing or unexpected directories."
+    }
     $actualFiles = @(Get-ChildItem -LiteralPath $BackupDirectory -File -Recurse -Force |
         Where-Object { $_.FullName -ne (Join-Path $BackupDirectory "backup-manifest.json") } |
         ForEach-Object { [IO.Path]::GetRelativePath($BackupDirectory, $_.FullName).Replace("\", "/") })
