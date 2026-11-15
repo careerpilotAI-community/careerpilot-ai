@@ -20,6 +20,14 @@ function Test-PathWithin([string]$Child, [string]$Parent) {
     return $childPath.Equals($parentPath, [StringComparison]::OrdinalIgnoreCase) -or
         $childPath.StartsWith($parentPath + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase)
 }
+function Get-RelativePath([string]$BasePath, [string]$TargetPath) {
+    $base = [IO.Path]::GetFullPath($BasePath).TrimEnd("\") + "\"
+    $target = [IO.Path]::GetFullPath($TargetPath)
+    if (-not $target.StartsWith($base, [StringComparison]::OrdinalIgnoreCase)) {
+        throw "Cannot calculate a relative path outside the base directory."
+    }
+    return $target.Substring($base.Length)
+}
 function Assert-NoReparsePoints([string]$Path) {
     $root = Get-Item -LiteralPath $Path -Force
     $items = @($root)
@@ -91,7 +99,7 @@ function Assert-Manifest([string]$BackupDirectory, $Manifest) {
         }
     }
     $actualDirectories = @(Get-ChildItem -LiteralPath $BackupDirectory -Directory -Recurse -Force |
-        ForEach-Object { [IO.Path]::GetRelativePath($BackupDirectory, $_.FullName).Replace("\", "/") } |
+        ForEach-Object { Get-RelativePath $BackupDirectory $_.FullName.Replace("\", "/") } |
         Sort-Object)
     $allowedDirectories = @("documents", "documents/available", "documents/quarantine")
     if (($actualDirectories -join "|") -ne ($allowedDirectories -join "|")) {
@@ -99,7 +107,7 @@ function Assert-Manifest([string]$BackupDirectory, $Manifest) {
     }
     $actualFiles = @(Get-ChildItem -LiteralPath $BackupDirectory -File -Recurse -Force |
         Where-Object { $_.FullName -ne (Join-Path $BackupDirectory "backup-manifest.json") } |
-        ForEach-Object { [IO.Path]::GetRelativePath($BackupDirectory, $_.FullName).Replace("\", "/") })
+        ForEach-Object { Get-RelativePath $BackupDirectory $_.FullName.Replace("\", "/") })
     if ($actualFiles.Count -ne $expected.Count) { throw "Backup contains missing or unlisted files." }
     foreach ($actual in $actualFiles) {
         if (-not $expected.Contains($actual)) { throw "Backup contains a file not listed in its manifest." }
