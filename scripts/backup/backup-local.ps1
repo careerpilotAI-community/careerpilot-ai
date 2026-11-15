@@ -77,6 +77,10 @@ if (-not (Test-Path -LiteralPath $JournalFile -PathType Leaf)) { throw "The inde
 
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "../..")).Path
 $backupCandidate = [IO.Path]::GetFullPath($BackupRoot).TrimEnd("\")
+$backupDriveRoot = [IO.Path]::GetPathRoot($backupCandidate).TrimEnd("\")
+if ($backupCandidate.Equals($backupDriveRoot, [StringComparison]::OrdinalIgnoreCase)) {
+    throw "BackupRoot must be a dedicated directory, not a volume root."
+}
 $documentsFull = (Resolve-Path $DocumentRoot).Path
 $journalFull = (Resolve-Path $JournalFile).Path
 $journalDirectory = (Resolve-Path (Split-Path -Parent $JournalFile)).Path
