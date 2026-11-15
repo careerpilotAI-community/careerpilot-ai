@@ -21,7 +21,11 @@ function Test-PathWithin([string]$Child, [string]$Parent) {
         $childPath.StartsWith($parentPath + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase)
 }
 function Assert-NoReparsePoints([string]$Path) {
-    $items = @(Get-Item -LiteralPath $Path -Force) + @(Get-ChildItem -LiteralPath $Path -Force -Recurse -ErrorAction Stop)
+    $root = Get-Item -LiteralPath $Path -Force
+    $items = @($root)
+    if ($root.PSIsContainer) {
+        $items += @(Get-ChildItem -LiteralPath $Path -Force -Recurse -ErrorAction Stop)
+    }
     foreach ($item in $items) {
         if (($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
             throw "Reparse points and symbolic links are not allowed in recovery paths."
