@@ -47,15 +47,27 @@ Set DATABASE_PASSWORD in the process environment. Do not place credentials in co
 4. Run the weekly version once per week by adding -Weekly.
 5. Restart the API only after the backup completes successfully.
 
-The script checks BitLocker protection for the backup, document, and journal volumes; refuses paths inside the Git repository or overlapping locations; uses pg_dump; copies the document tree; records SHA-256 hashes; and prunes to at most 7 daily and 4 weekly recovery points and 28 days. It does not create Windows Task Scheduler jobs. Configure daily and weekly scheduled tasks only after a successful supervised backup and restore drill; each task must stop the app/workers or use a separately validated quiesce mechanism.
+The script checks BitLocker protection for the backup, document, and journal volumes; refuses paths inside the Git repository or overlapping locations; rejects reparse points in document/journal sources; checks that no other PostgreSQL sessions remain connected and that deletion queues are clear; uses pg_dump; copies the document tree; records SHA-256 hashes; and prunes to at most 7 daily and 4 weekly recovery points and 28 days. Staging names include a random suffix and an existing staging directory is never removed or reused. The maintenance switch remains an operator attestation: the database-session check helps detect connected API/workers but cannot prove every external process is stopped. It does not create Windows Task Scheduler jobs. Configure daily and weekly scheduled tasks only after a successful supervised backup and restore drill; each task must stop the app/workers or use a separately validated quiesce mechanism.
 
 A backup command succeeding is not a restore-drill pass.
 
 ## 4. Restore into an isolated environment
 
-Never restore over the live database or active document root. Stop the application and prepare a separate, empty target database and isolated document/journal paths.
+Never restore over the live database or active document root. Stop the application and prepare a dedicated empty PostgreSQL database on the local loopback server. Choose a target database name containing `restore`, `recovery`, or `drill`, and confirm it is isolated with `-ConfirmIsolatedDatabase`. The script verifies the connected database name, loopback server address, and absence of user database objects. It does not use `pg_restore --clean`; the target must already exist and be empty.
 
-The selected backup directory is integrity-checked and rejected if older than 28 days. The restore process requires the current independent deletion journal, not merely the older journal snapshot stored inside the backup. This is essential: the journal bundled with a recovery point may predate a later deletion.
+The target document directory and target journal file must not exist before restore. Create the parent directory for the target journal file in advance. The restore creates a fresh document directory and uses non-mirroring `robocopy /E`, so it never removes pre-existing destination files. Restore is limited to a loopback database host; remote database recovery is not supported by this local script.
+
+The selected backup directory is integrity-checked and rejected if older than 28 days. The manifest must list the complete supported file inventory; paths are checked for traversal, duplicates, unexpected files, reparse points, size mismatches, and SHA-256 mismatches. Legacy recovery-point names created by the previous script remain accepted. The restore process requires the current independent deletion journal, not merely the older journal snapshot stored inside the backup. This is essential: the journal bundled with a recovery point may predate a later deletion.
+
+Before running the example, create the parent folder `D:\CareerPilotRestore` and its `journal` subfolder. Do not create the `documents` destination or the `account-deletions.jsonl` target file. Also create a dedicated empty local PostgreSQL database named `careerpilot_restore`; do not point this at the live `careerpilot` database.
+
+Before any synthetic recovery drill, run the non-mutating PowerShell syntax and guard checks from the repository root:
+
+```powershell
+.\scripts\validation\Test-BackupRestoreSafety.ps1
+```
+
+These checks do not connect to PostgreSQL or create, modify, or delete backup data. They are a static preflight, not a substitute for the full synthetic restore drill.
 
 Example:
 
@@ -68,10 +80,11 @@ $env:DATABASE_PASSWORD = "<load from your secure local secret store>"
   -TargetDocumentRoot "D:\CareerPilotRestore\documents" `
   -TargetJournalFile "D:\CareerPilotRestore\journal\account-deletions.jsonl" `
   -BackendDirectory "C:\path\to\careerpilot-ai\backend" `
+  -ConfirmIsolatedDatabase `
   -ReplayDeletionJournal
 ```
 
-The script restores PostgreSQL and document files, runs the backend in non-web migration-only mode with cleanup schedulers disabled, then replays every retained account tombstone. For account tombstones, replay removes both quarantine and available binaries and deletes the associated sessions, resumes, upload-cleanup records, tracker data, profile, skills, and user row. For asset tombstones, it removes only the named owner's asset binary and metadata. Replay is idempotent. Invalid journal records, unknown storage-key formats, database errors, or integrity mismatches stop the restore.
+The script restores PostgreSQL and document files, runs the backend in non-web migration-only mode with cleanup schedulers disabled, then replays every retained account tombstone. After replay it reconciles every remaining asset's opaque storage key, file presence, size, and SHA-256 checksum against PostgreSQL and rejects unreferenced objects. On a failed restore, the document/journal staging targets are removed; the dedicated recovery database may contain a completed or rolled-back restore attempt and must be dropped and recreated empty before retrying. For account tombstones, replay removes both quarantine and available binaries and deletes the associated sessions, resumes, upload-cleanup records, tracker data, profile, skills, and user row. For asset tombstones, it removes only the named owner's asset binary and metadata. Replay is idempotent. Invalid journal records, unknown storage-key formats, database errors, or integrity mismatches stop the restore.
 
 The script does not start the application. Keep it stopped until all verification below is complete.
 
@@ -96,7 +109,10 @@ Record the recovery-point ID, backup age, restore start/end times, result, and o
 
 - The scripts are local Windows operator tools, not a hosted backup service or scheduler.
 - BitLocker status checks are point-in-time checks; they do not escrow recovery keys or prove key recoverability. Branch 39 owns key recovery validation.
-- SHA-256 manifests detect accidental corruption but are not signed; protect backup directories and manifests with NTFS ACLs and BitLocker.
+- SHA-256 manifests detect accidental corruption but are not signed; protect backup directories and manifests with NTFS ACLs and BitLocker. Manifest hashes are not an authenticity guarantee against someone able to modify both the files and manifest.
+- Restore requires a dedicated empty local database, a new document destination, and a new journal file. It deliberately refuses pre-existing targets and does not delete existing database objects.
+- The database-empty and loopback checks reduce accidental targeting risk; `-ConfirmIsolatedDatabase` is still an operator attestation, not proof that a local PostgreSQL server is non-production.
+- The PowerShell static validation script checks parsing and key safety guards only. A full synthetic backup/restore drill remains mandatory before real personal documents are approved.
 - The current backup script requires maintenance mode. It does not promise online-consistent snapshots.
 - The sidecar journal is a high-value recovery artifact. Keep it available and protected independently from backup media; do not roll it back to the journal copy bundled in a selected recovery point.
 - Restore replay is an operator-run step. Never expose a restored application before the script and checklist have completed.
