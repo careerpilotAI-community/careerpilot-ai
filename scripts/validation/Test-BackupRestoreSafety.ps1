@@ -25,6 +25,8 @@ $restore = Get-Content -LiteralPath $restorePath -Raw
 $checks = @(
     @{ Name = "backup uses collision-resistant IDs"; Pass = $backup.Contains("[guid]::NewGuid()") },
     @{ Name = "backup refuses an existing staging directory"; Pass = $backup.Contains("refusing to remove or reuse it") },
+    @{ Name = "backup validates the private storage layout"; Pass = $backup.Contains("Assert-DocumentTree") -and $backup.Contains("quarantine") -and $backup.Contains("available") },
+    @{ Name = "backup validates reparse points"; Pass = $backup.Contains("Assert-NoReparsePoints") },
     @{ Name = "backup checks other PostgreSQL sessions"; Pass = $backup.Contains("pg_stat_activity") },
     @{ Name = "backup checks unresolved deletion queues"; Pass = $backup.Contains("resume_deletion_jobs") -and $backup.Contains("account_deletion_jobs") -and $backup.Contains("resume_upload_cleanup_jobs") },
     @{ Name = "backup restores PGPASSWORD"; Pass = $backup.Contains('$previousPgPassword') -and $backup.Contains("Remove-Item Env:PGPASSWORD") },
@@ -34,6 +36,8 @@ $checks = @(
     @{ Name = "restore does not use robocopy mirror"; Pass = $restore -notmatch '(?im)^\s*&\s*robocopy\.exe[^\r\n]*/MIR' },
     @{ Name = "restore does not invoke pg_restore clean"; Pass = $restore -notmatch '(?im)^\s*&\s*pg_restore\.exe[^\r\n]*--clean' },
     @{ Name = "restore validates manifest path containment"; Pass = $restore.Contains("Test-PathWithin $candidate $BackupDirectory") },
+    @{ Name = "restore rejects reparse points"; Pass = $restore.Contains("Assert-NoReparsePoints") },
+    @{ Name = "restore supports existing legacy recovery-point names"; Pass = $restore.Contains("\\d{6}Z|\\d{9}Z-") },
     @{ Name = "restore checks manifest inventory and hashes"; Pass = $restore.Contains("actualFiles") -and $restore.Contains("Get-FileHash") },
     @{ Name = "restore verifies database target is empty"; Pass = $restore.Contains('$objectCountSql') -and $restore.Contains("Target database is not empty") },
     @{ Name = "restore reconciles document metadata and files"; Pass = $restore.Contains("Restored assets reconciled") -and $restore.Contains("checksum_sha256") },
